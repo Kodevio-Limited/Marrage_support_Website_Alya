@@ -78,22 +78,22 @@ export default function Navbar() {
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="sticky top-0 z-50 w-full border-b border-[#E8CFC1] bg-white/95 backdrop-blur-md transition-all duration-300"
+      className="sticky top-0 z-50 w-full transition-all duration-300"
     >
-      <Container className="flex h-[72px] md:h-[100px] items-center justify-between py-[10px] !max-w-[1440px] !px-3 sm:!px-4 lg:!px-6 gap-3">
+      <Container className="grid h-[72px] md:h-[100px] grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 lg:gap-6 py-[10px] !max-w-[1440px] !px-3 sm:!px-4 lg:!px-6">
         {/* Brand Logo */}
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
-          className="shrink-0"
+          className="justify-self-start shrink-0"
         >
           <Link href="/" className="group flex items-center focus:outline-none">
             <Image
-              src="/Static/logo.png"
+              src="/Static/alia-logo.png"
               alt="ALIA Logo"
-              width={isArabic ? 64 : 80}
-              height={isArabic ? 60 : 75}
+              width={isArabic ? 48 : 56}
+              height={isArabic ? 48 : 56}
               className="object-contain"
               priority
             />
@@ -101,7 +101,7 @@ export default function Navbar() {
         </motion.div>
 
         {/* Desktop Navigation Links */}
-        <nav className="hidden items-center gap-[18px] xl:gap-[20px] lg:flex max-w-[680px]">
+        <nav className="hidden items-center gap-[18px] xl:gap-[20px] lg:flex justify-center justify-self-center">
           {navLinks.map((link, i) => (
             <motion.div
               key={link.href}
@@ -122,7 +122,7 @@ export default function Navbar() {
 
         {/* Actions (Language Dropdown + CTA) */}
         <motion.div
-          className="hidden items-center gap-4 md:flex shrink-0"
+          className="justify-self-end hidden items-center gap-3 sm:gap-4 md:flex shrink-0"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
@@ -193,7 +193,7 @@ export default function Navbar() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-[#FAEDE6] lg:hidden"
+          className="justify-self-end flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-700 hover:bg-[#FAEDE6] lg:hidden"
           aria-label={t('toggleMenu')}
         >
           {mobileMenuOpen ? <X className="h-6 w-6 text-[#781E36]" /> : <Menu className="h-6 w-6 text-[#781E36]" />}

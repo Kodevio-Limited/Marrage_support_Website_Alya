@@ -89,7 +89,7 @@
     "emiratesSubtitle": "Locate dedicated marriage support offices, council centers, and event venues in your emirate.",
     "capitalRegion": "Capital Region",
     "mainHeadquarters": "Main Headquarters",
-    "exploreCenters": "Explore Abu Dhabi Centers",
+    "exploreCenters": "Explore Centers",
     "emirates": [
       { "name": "Abu Dhabi", "title": "Abu Dhabi Family Development Foundation Hub", "centerCount": "12 Support Centers • 3 Event Halls" },
       { "name": "Dubai", "title": "Dubai Community Development Council", "centerCount": "8 Specialized Centers" },

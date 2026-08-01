@@ -36,16 +36,16 @@ export default function ConsultationSessions() {
         {/* Toggle Switch: Free Session / Paid Session */}
         <Reveal direction="up">
           <div className="flex items-center justify-center max-w-[1280px] mx-auto w-full h-[62px]">
-            <div className="relative flex rounded-full bg-[#FAEDE6] p-1 w-[260px]">
+            <div className="relative grid w-full max-w-[300px] grid-cols-2 rounded-full bg-[#FAEDE6] p-1">
               <div
-                className={`absolute top-1 bottom-1 w-[126px] rounded-full bg-white shadow-md transition-transform duration-300 ${
-                  activeTab === 'paid' ? 'translate-x-[126px]' : 'translate-x-0'
+                className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-white shadow-md transition-all duration-300 ${
+                  activeTab === 'paid' ? 'start-1/2' : 'start-1'
                 }`}
               />
               <button
                 type="button"
                 onClick={() => setActiveTab('free')}
-                className={`relative z-10 flex-1 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
+                className={`relative z-10 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
                   activeTab === 'free' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
               >
@@ -54,7 +54,7 @@ export default function ConsultationSessions() {
               <button
                 type="button"
                 onClick={() => setActiveTab('paid')}
-                className={`relative z-10 flex-1 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
+                className={`relative z-10 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
                   activeTab === 'paid' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
               >

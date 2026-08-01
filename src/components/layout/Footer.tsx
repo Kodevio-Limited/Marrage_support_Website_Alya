@@ -49,10 +49,10 @@ export default function Footer() {
           >
             <Link href="/" className="flex items-center">
               <Image
-                src="/Static/logo.png"
+                src="/Static/alia-logo.png"
                 alt="ALIA Logo"
-                width={80}
-                height={60}
+                width={56}
+                height={56}
                 className="object-contain"
                 priority
               />

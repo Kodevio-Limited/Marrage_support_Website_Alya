@@ -52,7 +52,7 @@ export default function Hero() {
       titlePrimary: t('card1a'),
       titleSecondary: t('card1b'),
       icon: <Landmark className="h-5 w-5 text-[#781E36]" />,
-      position: 'top-12 -left-8 sm:-left-12',
+      position: 'top-12 left-1 sm:-left-12',
       delay: 0,
       duration: 4,
     },
@@ -61,7 +61,7 @@ export default function Hero() {
       titlePrimary: t('card2a'),
       titleSecondary: t('card2b'),
       icon: <MessageSquare className="h-5 w-5 text-[#781E36]" />,
-      position: 'top-24 -right-4 sm:-right-10',
+      position: 'top-24 right-1 sm:-right-10',
       delay: 0.5,
       duration: 4.5,
     },
@@ -70,7 +70,7 @@ export default function Hero() {
       titlePrimary: t('card3a'),
       titleSecondary: t('card3b'),
       icon: <Calendar className="h-5 w-5 text-[#781E36]" />,
-      position: 'bottom-28 -left-6 sm:-left-12',
+      position: 'bottom-28 left-1 sm:-left-12',
       delay: 1,
       duration: 3.8,
     },
@@ -79,7 +79,7 @@ export default function Hero() {
       titlePrimary: t('card4a'),
       titleSecondary: t('card4b'),
       icon: <Coins className="h-5 w-5 text-[#781E36]" />,
-      position: 'bottom-6 -right-4 sm:-right-10',
+      position: 'bottom-6 right-1 sm:-right-10',
       delay: 1.5,
       duration: 4.2,
     },
@@ -87,69 +87,78 @@ export default function Hero() {
 
   return (
     <Section background="default" spacing="none" containerClassName="!max-w-[1440px]" className="pt-[56px] sm:pt-[96px] pb-[80px] sm:pb-[146px] overflow-hidden relative">
-      {/* Heavy Futuristic Background Glow Orbs & Light Beams */}
-      <motion.div
-        animate={{ rotate: [0, 360] }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-0 right-0 -mr-32 -mt-32 h-[550px] w-[550px] rounded-full bg-gradient-to-br from-[#781E36]/20 via-[#E8CFC1]/30 to-transparent blur-3xl pointer-events-none"
-      />
-      <motion.div
-        animate={{ rotate: [360, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-        className="absolute bottom-0 left-0 -ml-32 -mb-32 h-[550px] w-[550px] rounded-full bg-gradient-to-tr from-[#FAEDE6] via-[#781E36]/15 to-transparent blur-3xl pointer-events-none"
-      />
+      {/* Heavy Futuristic Background layers — desktop only, skipped on touch for performance */}
+      {!isTouch && (
+        <>
+          <motion.div
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            className="absolute top-0 right-0 -mr-32 -mt-32 h-[550px] w-[550px] rounded-full bg-gradient-to-br from-[#781E36]/20 via-[#E8CFC1]/30 to-transparent blur-3xl pointer-events-none"
+          />
+          <motion.div
+            animate={{ rotate: [360, 0] }}
+            transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
+            className="absolute bottom-0 left-0 -ml-32 -mb-32 h-[550px] w-[550px] rounded-full bg-gradient-to-tr from-[#FAEDE6] via-[#781E36]/15 to-transparent blur-3xl pointer-events-none"
+          />
 
-      {/* Rotating Scanline Ring */}
-      <motion.div
-        animate={{ rotate: [0, 360] }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-[#781E36]/10 pointer-events-none"
-        style={{
-          background: 'conic-gradient(from 0deg, transparent 40%, #781E3615 50%, transparent 60%)',
-          maskImage: 'radial-gradient(farthest-side, transparent 30%, black 70%, transparent 80%)',
-          WebkitMaskImage: 'radial-gradient(farthest-side, transparent 30%, black 70%, transparent 80%)',
-        }}
-      />
-      <motion.div
-        animate={{ rotate: [360, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-[#B83A4A]/10 pointer-events-none"
-        style={{
-          background: 'conic-gradient(from 180deg, transparent 45%, #781E3620 50%, transparent 55%)',
-          maskImage: 'radial-gradient(farthest-side, transparent 40%, black 60%, transparent 70%)',
-          WebkitMaskImage: 'radial-gradient(farthest-side, transparent 40%, black 60%, transparent 70%)',
-        }}
-      />
+          {/* Rotating Scanline Ring */}
+          <motion.div
+            animate={{ rotate: [0, 360] }}
+            transition={{ duration: 15, repeat: Infinity, ease: 'linear' }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full border border-[#781E36]/10 pointer-events-none"
+            style={{
+              background: 'conic-gradient(from 0deg, transparent 40%, #781E3615 50%, transparent 60%)',
+              maskImage: 'radial-gradient(farthest-side, transparent 30%, black 70%, transparent 80%)',
+              WebkitMaskImage: 'radial-gradient(farthest-side, transparent 30%, black 70%, transparent 80%)',
+            }}
+          />
+          <motion.div
+            animate={{ rotate: [360, 0] }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-[#B83A4A]/10 pointer-events-none"
+            style={{
+              background: 'conic-gradient(from 180deg, transparent 45%, #781E3620 50%, transparent 55%)',
+              maskImage: 'radial-gradient(farthest-side, transparent 40%, black 60%, transparent 70%)',
+              WebkitMaskImage: 'radial-gradient(farthest-side, transparent 40%, black 60%, transparent 70%)',
+            }}
+          />
 
-      {/* Floating Digital Particles */}
-      {[...Array(8)].map((_, i) => (
-        <motion.div
-          key={`particle-${i}`}
-          className="absolute h-1.5 w-1.5 rounded-full bg-[#781E36]/30 pointer-events-none"
-          style={{
-            left: `${15 + i * 10}%`,
-            top: `${20 + (i % 5) * 15}%`,
-          }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.2, 0.6, 0.2],
-            scale: [1, 1.5, 1],
-          }}
-          transition={{
-            duration: 3 + (i % 3),
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: i * 0.4,
-          }}
-        />
-      ))}
+          {/* Floating Digital Particles */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={`particle-${i}`}
+              className="absolute h-1.5 w-1.5 rounded-full bg-[#781E36]/30 pointer-events-none"
+              style={{
+                left: `${15 + i * 10}%`,
+                top: `${20 + (i % 5) * 15}%`,
+              }}
+              animate={{
+                y: [0, -30, 0],
+                opacity: [0.2, 0.6, 0.2],
+                scale: [1, 1.5, 1],
+              }}
+              transition={{
+                duration: 3 + (i % 3),
+                repeat: Infinity,
+                ease: 'easeInOut',
+                delay: i * 0.4,
+              }}
+            />
+          ))}
 
-      {/* Animated Light Grid Lines Overlay */}
-      <motion.div
-        animate={{ backgroundPosition: ['0px 0px', '40px 40px'] }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-        className="absolute inset-0 bg-[linear-gradient(to_right,#781E3608_1px,transparent_1px),linear-gradient(to_bottom,#781E3608_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"
-      />
+          {/* Animated Light Grid Lines Overlay */}
+          <motion.div
+            animate={{ backgroundPosition: ['0px 0px', '40px 40px'] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 bg-[linear-gradient(to_right,#781E3608_1px,transparent_1px),linear-gradient(to_bottom,#781E3608_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none"
+          />
+        </>
+      )}
+
+      {/* Soft static glow behind hero image (no repaint, no blur animation) */}
+      {isTouch && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-[radial-gradient(circle,rgba(120,30,54,0.12)_0%,transparent_65%)] pointer-events-none" />
+      )}
 
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 min-h-[580px] relative z-10">
         {/* Left Side Text Container */}
@@ -168,8 +177,8 @@ export default function Hero() {
             <Badge
               icon={
                 <motion.span
-                  animate={{ rotate: [0, 15, -15, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={isTouch ? undefined : { rotate: [0, 15, -15, 0] }}
+                  transition={isTouch ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 >
                   <ShieldCheck className="h-3 w-3 text-[#781E36]" />
                 </motion.span>
@@ -189,8 +198,8 @@ export default function Hero() {
             <h1 className="relative text-[28px] sm:text-5xl lg:text-6xl xl:text-[54px] font-black tracking-tight leading-[1.1] whitespace-pre-line">
               <motion.span
                 className="bg-gradient-to-r from-[#781E36] via-[#B83A4A] via-[#781E36] to-[#781E36] bg-[length:250%_100%] bg-clip-text text-transparent"
-                animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
+                animate={isTouch ? undefined : { backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                transition={isTouch ? undefined : { duration: 6, repeat: Infinity, ease: 'linear' }}
               >
                 {t('title')}
               </motion.span>
@@ -228,8 +237,8 @@ export default function Hero() {
                   WebkitMaskComposite: 'xor',
                   maskComposite: 'exclude',
                 }}
-                animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
-                transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
+                animate={isTouch ? undefined : { backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
+                transition={isTouch ? undefined : { duration: 5, repeat: Infinity, ease: 'linear' }}
               />
               <Search className="relative ltr:ml-3 rtl:mr-3 h-5 w-5 shrink-0 text-[#781E36] z-10" />
               <input
@@ -247,8 +256,8 @@ export default function Hero() {
               >
                 <motion.span
                   className="absolute inset-0 bg-gradient-to-r from-[#B83A4A] to-[#781E36]"
-                  animate={{ opacity: [0, 0.5, 0] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={isTouch ? undefined : { opacity: [0, 0.5, 0] }}
+                  transition={isTouch ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <span className="relative z-10">{t('search')}</span>
               </motion.button>
@@ -288,24 +297,31 @@ export default function Hero() {
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
           className="relative flex mt-10 justify-center lg:col-span-6 xl:col-span-5 h-[480px] sm:h-[600px] w-full max-w-[640px]"
         >
-          <div
-            ref={pictureRef}
-            onPointerMove={handlePointerMove}
-            onPointerLeave={handlePointerLeave}
+          <motion.div
+            animate={isTouch ? { y: [0, -10, 0] } : undefined}
+            transition={isTouch ? { duration: 6, repeat: Infinity, ease: 'easeInOut' } : undefined}
             className="relative w-full h-full"
-            style={{ perspective: 1200, touchAction: 'none' }}
           >
-            {/* Ambient Hologram Glow Aura */}
-            <motion.div
-              className="absolute -inset-4 rounded-[36px] blur-2xl pointer-events-none"
-              style={{
-                background: 'conic-gradient(from var(--angle, 0deg), #781E3640, #E8CFC1, #B83A4A40, #781E3640)',
-              }}
-              animate={{
-                '--angle': ['0deg', '360deg'],
-              } as any}
-              transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-            />
+            <div
+              ref={pictureRef}
+              onPointerMove={isTouch ? undefined : handlePointerMove}
+              onPointerLeave={isTouch ? undefined : handlePointerLeave}
+              className="relative w-full h-full"
+              style={{ perspective: 1200 }}
+            >
+            {/* Ambient Hologram Glow Aura - desktop only */}
+            {!isTouch && (
+              <motion.div
+                className="absolute -inset-4 rounded-[36px] blur-2xl pointer-events-none"
+                style={{
+                  background: 'conic-gradient(from var(--angle, 0deg), #781E3640, #E8CFC1, #B83A4A40, #781E3640)',
+                }}
+                animate={{
+                  '--angle': ['0deg', '360deg'],
+                } as any}
+                transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+              />
+            )}
 
             {/* Main Picture Box with 3D Tilt */}
             <motion.div
@@ -326,8 +342,8 @@ export default function Hero() {
                 {/* Cinematic Gradient Overlay */}
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"
-                  animate={{ opacity: [0.4, 0.6, 0.4] }}
-                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={isTouch ? undefined : { opacity: [0.4, 0.6, 0.4] }}
+                  transition={isTouch ? undefined : { duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 {/* Scanning Line Effect */}
                 <motion.div
@@ -336,8 +352,8 @@ export default function Hero() {
                     background: 'linear-gradient(to bottom, transparent 48%, rgba(120,30,54,0.15) 50%, transparent 52%)',
                     backgroundSize: '100% 8px',
                   }}
-                  animate={{ backgroundPosition: ['0px -100%', '0px 100%'] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  animate={isTouch ? undefined : { backgroundPosition: ['0px -100%', '0px 100%'] }}
+                  transition={isTouch ? undefined : { duration: 3, repeat: Infinity, ease: 'linear' }}
                 />
               </div>
             </motion.div>
@@ -350,7 +366,7 @@ export default function Hero() {
                 animate={{
                   opacity: 1,
                   scale: 1,
-                  y: isTouch ? [0, -6, 0] : [0, -10, 0],
+                  y: isTouch ? [0, -7, 0] : [0, -10, 0],
                 }}
                 transition={{
                   opacity: { duration: 0.5, delay: 0.4 + card.delay },
@@ -363,7 +379,7 @@ export default function Hero() {
                   },
                 }}
                 whileHover={{ scale: 1.1, borderColor: '#781E36' }}
-                className={`absolute ${card.position} z-20 flex items-center gap-3 sm:gap-4 rounded-2xl border border-[#E8CFC1] bg-white/95 p-3 sm:p-4 shadow-2xl backdrop-blur-md transition-shadow duration-300 hover:shadow-[#781E36]/20 cursor-pointer`}
+                className={`absolute ${card.position} z-20 flex items-center gap-3 sm:gap-4 rounded-2xl border border-[#E8CFC1] ${isTouch ? 'bg-white' : 'bg-white/95 backdrop-blur-md'} p-3 sm:p-4 shadow-2xl transition-shadow duration-300 hover:shadow-[#781E36]/20 cursor-pointer`}
               >
                 <motion.div
                   className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-[#FAEDE6] border border-[#E8CFC1]"
@@ -382,6 +398,7 @@ export default function Hero() {
               </motion.div>
             ))}
           </div>
+          </motion.div>
         </motion.div>
       </div>
     </Section>

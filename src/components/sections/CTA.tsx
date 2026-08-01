@@ -20,7 +20,7 @@ export default function CTA() {
           }}
         >
           {/* Animated Background Lights */}
-          <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-white/10 blur-3xl pointer-events-none animate-pulse" />
+          <div className="absolute -top-32 -left-32 h-80 w-80 rounded-full bg-white/10 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-white/10 blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col items-center max-w-[848px]">
