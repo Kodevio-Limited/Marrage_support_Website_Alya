@@ -38,7 +38,7 @@ export default function UpcomingInitiatives() {
           <Reveal key={index} delay={index * 0.15} direction={index % 2 === 0 ? 'right' : 'left'}>
             {/* Inside Card */}
             <div
-              className="group flex h-auto min-h-[700px] w-full max-w-[610px] mx-auto flex-col overflow-hidden rounded-[32px] border border-[#E8CFC1] bg-white transition-all duration-300 hover:-translate-y-2 hover:border-[#781E36]"
+              className="group flex h-full w-full max-w-[610px] mx-auto flex-col overflow-hidden rounded-[32px] border border-[#E8CFC1] bg-white transition-all duration-300 hover:-translate-y-2 hover:border-[#781E36]"
               style={{
                 boxShadow:
                   '0px 2px 4px -2px rgba(0, 0, 0, 0.1), 0px 4px 6px -1px rgba(0, 0, 0, 0.1)',
@@ -60,7 +60,7 @@ export default function UpcomingInitiatives() {
               </div>
 
               {/* Text & Details */}
-              <div className="flex flex-1 flex-col justify-between p-6 sm:p-8">
+              <div className="flex flex-1 flex-col p-6 sm:p-8">
                 <div className="flex flex-col gap-3">
                   <h3 className="text-xl sm:text-2xl font-extrabold text-gray-900 leading-snug group-hover:text-[#781E36] transition-colors">
                     {initiative.title}
@@ -69,14 +69,14 @@ export default function UpcomingInitiatives() {
                     {initiative.description}
                   </p>
 
-                  <div className="mt-2 flex items-center gap-2 text-xs font-bold text-[#781E36] bg-[#FAEDE6] p-3 rounded-xl border border-[#E8CFC1]">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#781E36]" />
+                  <div className="mt-3 flex items-start gap-2 text-xs font-bold text-[#781E36] bg-[#FAEDE6] p-3 rounded-xl border border-[#E8CFC1]">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#781E36] mt-0.5" />
                     <span>{initiative.details}</span>
                   </div>
                 </div>
 
                 {/* Learn More Button */}
-                <div className="mt-6 pt-4">
+                <div className="mt-6">
                   <Button
                     href="#register"
                     size="lg"
