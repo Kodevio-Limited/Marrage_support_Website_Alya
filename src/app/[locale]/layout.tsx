@@ -20,9 +20,9 @@ export const metadata: Metadata = {
   description:
     'Official UAE platform dedicated to empowering Emirati families through comprehensive marriage guidance, financial grants, and community support.',
   icons: {
-    icon: '/Static/favicon.png',
-    shortcut: '/Static/favicon.png',
-    apple: '/Static/favicon.png',
+    icon: '/Static/favicon.png?v=2',
+    shortcut: '/Static/favicon.png?v=2',
+    apple: '/Static/favicon.png?v=2',
   },
 };
 
