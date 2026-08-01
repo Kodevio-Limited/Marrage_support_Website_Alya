@@ -1,8 +1,9 @@
 'use client';
 import React from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
+import { Link } from '@/i18n/navigation';
 import Container from '../shared/Container';
 import Reveal from '../shared/Reveal';
 import { Phone, Mail, MapPin, Heart } from 'lucide-react';
@@ -26,6 +27,7 @@ const linkVariants = {
 };
 
 export default function Footer() {
+  const t = useTranslations('footer');
   return (
     <motion.footer
       initial={{ opacity: 0 }}
@@ -56,14 +58,14 @@ export default function Footer() {
               />
             </Link>
             <p className="text-xs md:text-sm leading-relaxed text-[#6B5B57]">
-              Alia is the official platform dedicated to empowering Emirati families through comprehensive marriage guidance, financial grants, and lifelong community support.
+              {t('brand')}
             </p>
             <motion.div
               className="text-xs font-extrabold text-[#781E36]"
               whileHover={{ x: 3 }}
               transition={{ duration: 0.2 }}
             >
-              United Arab Emirates Government Initiative
+              {t('governmentInitiative')}
             </motion.div>
           </motion.div>
 
@@ -76,14 +78,14 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-3 max-w-[272px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">Quick Links</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('quickLinks')}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
               {[
-                { label: 'Home', href: '/' },
-                { label: 'About Alia', href: '#about' },
-                { label: 'Contact Us', href: '/contact' },
-                { label: 'National Initiatives', href: '#initiatives' },
-                { label: 'Emirates Centers', href: '#emirates' },
+                { label: t('home'), href: '/' },
+                { label: t('about'), href: '/about' },
+                { label: t('contact'), href: '/contact' },
+                { label: t('nationalInitiatives'), href: '/initiatives' },
+                { label: t('emiratesCenters'), href: '/emirates' },
               ].map((item, i) => (
                 <motion.li
                   key={item.label}
@@ -112,13 +114,13 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-3 max-w-[272px] pb-[40px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">Resources</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('resources')}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
               {[
-                { label: 'Wedding Grants FAQ', href: '#grants' },
-                { label: 'UAE Family Law Guide', href: '#legal' },
-                { label: 'Housing Subsidy Portal', href: '#housing' },
-                { label: 'Media Center & News', href: '#media' },
+                { label: t('weddingGrants'), href: '#' },
+                { label: t('familyLaw'), href: '#' },
+                { label: t('housing'), href: '#' },
+                { label: t('media'), href: '/news' },
               ].map((item, i) => (
                 <motion.li
                   key={item.label}
@@ -147,7 +149,7 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-2 max-w-[272px] pb-[8px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">Contacts</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('contacts')}</h4>
             <div className="flex flex-col gap-3 text-xs md:text-sm font-semibold">
               <motion.div
                 className="flex items-center gap-2.5"
@@ -184,13 +186,13 @@ export default function Footer() {
             whileHover={{ color: '#781E36' }}
             transition={{ duration: 0.3 }}
           >
-            <p>© {new Date().getFullYear()} Alia Platform. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} {t('allRights')}</p>
             <motion.div
               className="flex items-center gap-1.5 text-xs"
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <span>Built for Emirati Families</span>
+              <span>{t('builtFor')}</span>
               <Heart className="h-3.5 w-3.5 fill-[#781E36] text-[#781E36]" />
             </motion.div>
           </motion.div>

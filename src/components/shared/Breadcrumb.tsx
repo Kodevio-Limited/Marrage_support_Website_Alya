@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import Link from 'next/link';
+import { Link } from '@/i18n/navigation';
 import { ChevronRight } from 'lucide-react';
 
 export interface BreadcrumbProps {
@@ -9,10 +9,10 @@ export interface BreadcrumbProps {
 
 export default function Breadcrumb({ items }: BreadcrumbProps) {
   return (
-    <nav className="flex items-center gap-[6px] h-[29px] max-w-[1280px]">
+    <nav className="flex items-center gap-[6px] h-[29px] max-w-[1280px] flex-wrap">
       {items.map((item, i) => (
         <React.Fragment key={i}>
-          {i > 0 && <ChevronRight className="h-3 w-3 text-[#6B5B57]" />}
+          {i > 0 && <ChevronRight className="h-3 w-3 text-[#6B5B57] rtl:rotate-180 shrink-0" />}
           {item.href ? (
             <Link
               href={item.href}

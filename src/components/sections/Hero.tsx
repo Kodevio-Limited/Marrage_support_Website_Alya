@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { useTranslations, useLocale } from 'next-intl';
 import Section from '../shared/Section';
 import Badge from '../shared/Badge';
 import Button from '../shared/Button';
@@ -15,39 +16,24 @@ import {
   Coins,
 } from 'lucide-react';
 
-export interface HeroProps {
-  eyebrow?: string;
-  title?: string;
-  subtitle?: string;
-  ctaPrimaryLabel?: string;
-  ctaPrimaryHref?: string;
-  ctaSecondaryLabel?: string;
-  ctaSecondaryHref?: string;
-  image?: { src: string; alt: string };
-}
-
-export default function Hero({
-  eyebrow = 'Supporting stronger families across the UAE',
-  title = 'Building Stronger Families Through Trusted Marriage Support',
-  subtitle = 'Alia is the official platform dedicated to guiding, supporting, and enriching marriage through government programs, expert consultation, and community initiatives.',
-  ctaPrimaryLabel = 'Explore Initiatives',
-  ctaPrimaryHref = '#initiatives',
-  ctaSecondaryLabel = 'Find Support',
-  ctaSecondaryHref = '#consultation',
-  image = {
-    src: '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
-    alt: 'Emirati couple looking at UAE skyline',
-  },
-}: HeroProps) {
+export default function Hero() {
+  const t = useTranslations('home.hero');
+  const isRtl = useLocale() === 'ar';
   const [searchQuery, setSearchQuery] = useState('');
+  const [isTouch, setIsTouch] = useState(false);
   const pictureRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsTouch(window.matchMedia('(pointer: coarse)').matches);
+  }, []);
 
   const x = useMotionValue(0);
   const y = useMotionValue(0);
-  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [6, -6]), { damping: 25, stiffness: 150 });
-  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-6, 6]), { damping: 25, stiffness: 150 });
+  const tiltAngle = isTouch ? 3 : 4;
+  const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [tiltAngle, -tiltAngle]), { damping: 25, stiffness: 150 });
+  const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-tiltAngle, tiltAngle]), { damping: 25, stiffness: 150 });
 
-  function handleMouseMove(e: React.MouseEvent) {
+  function handlePointerMove(e: React.PointerEvent) {
     const rect = pictureRef.current?.getBoundingClientRect();
     if (!rect) return;
     const px = (e.clientX - rect.left) / rect.width - 0.5;
@@ -55,7 +41,7 @@ export default function Hero({
     x.set(px);
     y.set(py);
   }
-  function handleMouseLeave() {
+  function handlePointerLeave() {
     x.set(0);
     y.set(0);
   }
@@ -63,17 +49,17 @@ export default function Hero({
   const floatingCards = [
     {
       id: 'card-1',
-      titlePrimary: 'Government',
-      titleSecondary: 'Programs',
+      titlePrimary: t('card1a'),
+      titleSecondary: t('card1b'),
       icon: <Landmark className="h-5 w-5 text-[#781E36]" />,
-      position: 'top-12 -left-12',
+      position: 'top-12 -left-8 sm:-left-12',
       delay: 0,
       duration: 4,
     },
     {
       id: 'card-2',
-      titlePrimary: 'Consultation',
-      titleSecondary: 'Services',
+      titlePrimary: t('card2a'),
+      titleSecondary: t('card2b'),
       icon: <MessageSquare className="h-5 w-5 text-[#781E36]" />,
       position: 'top-24 -right-4 sm:-right-10',
       delay: 0.5,
@@ -81,8 +67,8 @@ export default function Hero({
     },
     {
       id: 'card-3',
-      titlePrimary: 'Upcoming',
-      titleSecondary: 'Events',
+      titlePrimary: t('card3a'),
+      titleSecondary: t('card3b'),
       icon: <Calendar className="h-5 w-5 text-[#781E36]" />,
       position: 'bottom-28 -left-6 sm:-left-12',
       delay: 1,
@@ -90,8 +76,8 @@ export default function Hero({
     },
     {
       id: 'card-4',
-      titlePrimary: 'Financial',
-      titleSecondary: 'Support',
+      titlePrimary: t('card4a'),
+      titleSecondary: t('card4b'),
       icon: <Coins className="h-5 w-5 text-[#781E36]" />,
       position: 'bottom-6 -right-4 sm:-right-10',
       delay: 1.5,
@@ -100,7 +86,7 @@ export default function Hero({
   ];
 
   return (
-    <Section background="default" spacing="none" containerClassName="!max-w-[1440px]" className="pt-[96px] pb-[146px] overflow-hidden relative">
+    <Section background="default" spacing="none" containerClassName="!max-w-[1440px]" className="pt-[56px] sm:pt-[96px] pb-[80px] sm:pb-[146px] overflow-hidden relative">
       {/* Heavy Futuristic Background Glow Orbs & Light Beams */}
       <motion.div
         animate={{ rotate: [0, 360] }}
@@ -168,7 +154,7 @@ export default function Hero({
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:gap-8 min-h-[580px] relative z-10">
         {/* Left Side Text Container */}
         <motion.div
-          initial={{ opacity: 0, x: -80 }}
+          initial={{ opacity: 0, x: isRtl ? 80 : -80 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], staggerChildren: 0.12 }}
           className="flex flex-col self-start gap-6 lg:col-span-6 xl:col-span-7 max-w-[672px]"
@@ -190,7 +176,7 @@ export default function Hero({
               }
               className="px-2.5 py-0.5 text-[11px] font-bold"
             >
-              {eyebrow}
+              {t('eyebrow')}
             </Badge>
           </motion.div>
 
@@ -200,13 +186,13 @@ export default function Hero({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.15 }}
           >
-            <h1 className="relative text-4xl font-black tracking-tight leading-[1.1] sm:text-5xl lg:text-6xl xl:text-[54px] whitespace-pre-line">
+            <h1 className="relative text-[28px] sm:text-5xl lg:text-6xl xl:text-[54px] font-black tracking-tight leading-[1.1] whitespace-pre-line">
               <motion.span
                 className="bg-gradient-to-r from-[#781E36] via-[#B83A4A] via-[#781E36] to-[#781E36] bg-[length:250%_100%] bg-clip-text text-transparent"
                 animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
                 transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
               >
-                {title}
+                {t('title')}
               </motion.span>
             </h1>
           </motion.div>
@@ -218,21 +204,7 @@ export default function Hero({
             transition={{ duration: 0.5, delay: 0.35 }}
           >
             <p className="text-base md:text-lg text-[#6B5B57] leading-relaxed font-medium overflow-hidden">
-              {subtitle.split(' ').map((word, i) => (
-                <motion.span
-                  key={i}
-                  className="inline-block mr-[0.25em]"
-                  initial={{ opacity: 0, y: 20, rotateX: 30 }}
-                  animate={{ opacity: 1, y: 0, rotateX: 0 }}
-                  transition={{
-                    duration: 0.5,
-                    delay: 0.4 + i * 0.035,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                >
-                  {word}
-                </motion.span>
-              ))}
+              {t('subtitle')}
             </p>
           </motion.div>
 
@@ -259,12 +231,12 @@ export default function Hero({
                 animate={{ backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] }}
                 transition={{ duration: 5, repeat: Infinity, ease: 'linear' }}
               />
-              <Search className="relative ml-3 h-5 w-5 shrink-0 text-[#781E36] z-10" />
+              <Search className="relative ltr:ml-3 rtl:mr-3 h-5 w-5 shrink-0 text-[#781E36] z-10" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search Initiatives, Organizations, or Services..."
+                placeholder={t('searchPlaceholder')}
                 className="relative w-full bg-transparent px-5 text-sm font-semibold text-gray-900 placeholder:text-gray-400 focus:outline-none z-10"
               />
               <motion.button
@@ -278,7 +250,7 @@ export default function Hero({
                   animate={{ opacity: [0, 0.5, 0] }}
                   transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 />
-                <span className="relative z-10">Search</span>
+                <span className="relative z-10">{t('search')}</span>
               </motion.button>
             </form>
           </motion.div>
@@ -292,17 +264,17 @@ export default function Hero({
             <div className="mt-2 flex flex-wrap items-center gap-4">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
                 <Button
-                  href={ctaPrimaryHref}
+                  href="#initiatives"
                   size="lg"
                   variant="primary"
-                  icon={<ArrowRight className="h-5 w-5" />}
+                  icon={<ArrowRight className="h-5 w-5 rtl:rotate-180" />}
                 >
-                  {ctaPrimaryLabel}
+                  {t('ctaPrimary')}
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
-                <Button href={ctaSecondaryHref} size="lg" variant="secondary">
-                  {ctaSecondaryLabel}
+                <Button href="#consultation" size="lg" variant="secondary">
+                  {t('ctaSecondary')}
                 </Button>
               </motion.div>
             </div>
@@ -311,17 +283,17 @@ export default function Hero({
 
         {/* Right Side Picture Container with 4 Futuristic 3D Floating Cards */}
         <motion.div
-          initial={{ opacity: 0, x: 100, scale: 0.95 }}
+          initial={{ opacity: 0, x: isRtl ? -100 : 100, scale: 0.95 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-          className="relative flex mt-10 justify-center lg:col-span-6 xl:col-span-5 h-[600px] w-full max-w-[640px]"
+          className="relative flex mt-10 justify-center lg:col-span-6 xl:col-span-5 h-[480px] sm:h-[600px] w-full max-w-[640px]"
         >
           <div
             ref={pictureRef}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
             className="relative w-full h-full"
-            style={{ perspective: 1200 }}
+            style={{ perspective: 1200, touchAction: 'none' }}
           >
             {/* Ambient Hologram Glow Aura */}
             <motion.div
@@ -344,8 +316,8 @@ export default function Hero({
                 className="relative h-full w-full overflow-hidden rounded-[22px]"
               >
                 <Image
-                  src={image.src}
-                  alt={image.alt}
+                  src="/Static/Home/Hero/Emirati couple looking at UAE skyline.png"
+                  alt="Emirati couple looking at UAE skyline"
                   fill
                   priority
                   className="object-cover"
@@ -378,7 +350,7 @@ export default function Hero({
                 animate={{
                   opacity: 1,
                   scale: 1,
-                  y: [0, -10, 0],
+                  y: isTouch ? [0, -6, 0] : [0, -10, 0],
                 }}
                 transition={{
                   opacity: { duration: 0.5, delay: 0.4 + card.delay },
@@ -391,19 +363,19 @@ export default function Hero({
                   },
                 }}
                 whileHover={{ scale: 1.1, borderColor: '#781E36' }}
-                className={`absolute ${card.position} z-20 flex items-center gap-4 rounded-2xl border border-[#E8CFC1] bg-white/95 p-4 shadow-2xl backdrop-blur-md transition-shadow duration-300 hover:shadow-[#781E36]/20 cursor-pointer`}
+                className={`absolute ${card.position} z-20 flex items-center gap-3 sm:gap-4 rounded-2xl border border-[#E8CFC1] bg-white/95 p-3 sm:p-4 shadow-2xl backdrop-blur-md transition-shadow duration-300 hover:shadow-[#781E36]/20 cursor-pointer`}
               >
                 <motion.div
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FAEDE6] border border-[#E8CFC1]"
+                  className="flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl bg-[#FAEDE6] border border-[#E8CFC1]"
                   whileHover={{ rotate: 10 }}
                 >
                   {card.icon}
                 </motion.div>
                 <div className="flex flex-col leading-none">
-                  <span className="text-base font-black tracking-tight text-[#781E36]">
+                  <span className="text-sm sm:text-base font-black tracking-tight text-[#781E36]">
                     {card.titlePrimary}
                   </span>
-                  <span className="text-[11px] font-bold text-gray-700 leading-tight">
+                  <span className="text-[10px] sm:text-[11px] font-bold text-gray-700 leading-tight">
                     {card.titleSecondary}
                   </span>
                 </div>

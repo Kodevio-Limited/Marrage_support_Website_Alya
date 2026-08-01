@@ -1,31 +1,34 @@
 'use client';
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Button from '../shared/Button';
 import Heading from '../shared/Heading';
-import { ConsultationItem } from '@/types/home';
 import { Calendar, Clock, Users } from 'lucide-react';
 
-export interface ConsultationSessionsProps {
-  items: ConsultationItem[];
-}
+const images = [
+  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=300&auto=format&fit=crop',
+];
 
-export default function ConsultationSessions({ items }: ConsultationSessionsProps) {
+export default function ConsultationSessions() {
+  const t = useTranslations('home');
+  const items = t.raw('consultations') as { title: string; name: string; date: string; time: string; seats: string; ctaLabel: string }[];
   const [activeTab, setActiveTab] = useState<'free' | 'paid'>('free');
 
   return (
-    <Section background="muted" spacing="none" id="consultation" containerClassName="!max-w-[1440px]" className="py-[80px]">
+    <Section background="muted" spacing="none" id="consultation" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
       <div className="flex flex-col gap-12">
         {/* Header: centered */}
         <Reveal direction="up">
           <div className="flex flex-col items-center text-center gap-4">
             <Heading level={2} align="center">
-              Congratulations Sessions
+              {t('consultationsTitle')}
             </Heading>
             <p className="max-w-2xl text-[#6B5B57] text-base leading-relaxed">
-              Connect with certified expert and counselors to guide you through various stages of your merital journey.
+              {t('consultationsSubtitle')}
             </p>
           </div>
         </Reveal>
@@ -46,7 +49,7 @@ export default function ConsultationSessions({ items }: ConsultationSessionsProp
                   activeTab === 'free' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
               >
-                Free Session
+                {t('freeSession')}
               </button>
               <button
                 type="button"
@@ -55,18 +58,18 @@ export default function ConsultationSessions({ items }: ConsultationSessionsProp
                   activeTab === 'paid' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
               >
-                Paid Session
+                {t('paidSession')}
               </button>
             </div>
           </div>
         </Reveal>
 
-        {/* Grid of 2 Cards: 620x263, radius 24px */}
+        {/* Grid of 2 Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {items.map((session, index) => (
-            <Reveal key={session.id} delay={index * 0.15} direction="up">
+            <Reveal key={index} delay={index * 0.15} direction="up">
               <div
-                className="group flex h-[263px] w-full max-w-[620px] mx-auto flex-col rounded-[24px] bg-white p-6 transition-all duration-300 hover:-translate-y-1.5"
+                className="group flex h-auto min-h-[263px] w-full max-w-[620px] mx-auto flex-col rounded-[24px] bg-white p-6 transition-all duration-300 hover:-translate-y-1.5"
                 style={{
                   boxShadow:
                     '0px 2px 4px -2px rgba(0, 0, 0, 0.1), 0px 4px 6px -1px rgba(0, 0, 0, 0.1)',
@@ -76,8 +79,8 @@ export default function ConsultationSessions({ items }: ConsultationSessionsProp
                 <div className="flex items-center gap-4">
                   <div className="relative h-[56px] w-[56px] shrink-0 overflow-hidden rounded-full bg-gray-100">
                     <Image
-                      src={session.image.src}
-                      alt={session.image.alt}
+                      src={images[index % images.length]}
+                      alt={session.title}
                       fill
                       className="object-cover"
                       sizes="56px"
@@ -112,7 +115,7 @@ export default function ConsultationSessions({ items }: ConsultationSessionsProp
                       {session.seats}
                     </span>
                   </div>
-                  <Button href={session.ctaHref} size="sm" variant="primary" className="w-full justify-center">
+                  <Button href="/consultation/details" size="sm" variant="primary" className="w-full justify-center">
                     {session.ctaLabel}
                   </Button>
                 </div>

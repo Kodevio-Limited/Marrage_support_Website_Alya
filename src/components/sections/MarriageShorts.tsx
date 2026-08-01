@@ -1,41 +1,47 @@
 'use client';
 import React from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Heading from '../shared/Heading';
-import { MarriageShort } from '@/types/home';
 import { Play, Clock, Calendar, ArrowRight } from 'lucide-react';
 
-export interface MarriageShortsProps {
-  items: MarriageShort[];
-}
+const images = [
+  'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1450133064473-71024230f91b?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=600&auto=format&fit=crop',
+];
 
-export default function MarriageShorts({ items }: MarriageShortsProps) {
+export default function MarriageShorts() {
+  const t = useTranslations('home');
+  const items = t.raw('shorts') as { title: string; category: string; duration: string; date: string }[];
+
   return (
-    <Section background="default" spacing="none" id="shorts" containerClassName="!max-w-[1440px]" className="py-[80px]">
+    <Section background="default" spacing="none" id="shorts" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
       {/* Header Container: width 1280, height 80, space-between */}
       <Reveal direction="up">
         <div className="flex flex-col items-center text-center gap-4 min-h-[80px] mb-12">
           <Heading
             level={2}
             align="center"
-            subtitle="Watch quick educational reels and legal advice from certified marital counselors."
+            subtitle={t('shortsSubtitle')}
           >
-            Featured Marriage Guidance & Shorts
+            {t('shortsTitle')}
           </Heading>
         </div>
       </Reveal>
 
-      {/* Grid of 4 Cards: 295x504, padding 30/15, radius 20px, border 1px solid #781E36 */}
+      {/* Grid of 4 Cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((short, index) => (
-          <Reveal key={short.id} delay={index * 0.1} direction="up">
-            <div className="group relative h-[504px] w-full max-w-[295px] mx-auto rounded-[20px] border border-[#781E36] overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-2 hover:border-[#781E36]">
+          <Reveal key={index} delay={index * 0.1} direction="up">
+            <div className="group relative h-[460px] sm:h-[504px] w-full max-w-[295px] mx-auto rounded-[20px] border border-[#781E36] overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:border-2 hover:border-[#781E36]">
               {/* Full Background Image */}
               <Image
-                src={short.image.src}
-                alt={short.image.alt}
+                src={images[index % images.length]}
+                alt={short.title}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-110"
                 sizes="(max-width: 768px) 100vw, 295px"
@@ -74,8 +80,8 @@ export default function MarriageShorts({ items }: MarriageShortsProps) {
                       <Calendar className="h-3.5 w-3.5 text-[#E8CFC1]" />
                       <span className="leading-none">{short.date}</span>
                     </span>
-                    <span className="font-bold text-[#E8CFC1] group-hover:underline h-[20px] leading-none">
-                      Watch Reel →
+                    <span className="inline-flex items-center gap-1 font-bold text-[#E8CFC1] group-hover:underline h-[20px] leading-none">
+                      {t('shortsWatchReel')} <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" />
                     </span>
                   </div>
                 </div>
