@@ -94,8 +94,10 @@
       { "name": "Abu Dhabi", "title": "Abu Dhabi Family Development Foundation Hub", "centerCount": "12 Support Centers • 3 Event Halls" },
       { "name": "Dubai", "title": "Dubai Community Development Council", "centerCount": "8 Specialized Centers" },
       { "name": "Sharjah", "title": "Sharjah Family Affairs Supreme Council", "centerCount": "6 Heritage Centers" },
-      { "name": "Ajman & Umm Al Quwain", "title": "Northern Emirates Unified Marriage Board", "centerCount": "5 Community Outposts" },
-      { "name": "Ras Al Khaimah & Fujairah", "title": "Eastern Coast Family & Youth Support Hub", "centerCount": "4 Regional Offices" }
+      { "name": "Ajman", "title": "Ajman Family Support and Marriage Guidance Center", "centerCount": "5 Community Outposts" },
+      { "name": "Umm Al Quwain", "title": "Umm Al Quwain Family Services Coordination Hub", "centerCount": "3 Local Support Offices" },
+      { "name": "Ras Al Khaimah", "title": "Ras Al Khaimah Family Wellbeing Council", "centerCount": "4 Regional Offices" },
+      { "name": "Fujairah", "title": "Fujairah Community Marriage Support Center", "centerCount": "4 Coastal Support Units" }
     ],
     "ctaTitle": "Start Your Journey Toward a Stronger Family",
     "ctaSubtitle": "Join thousands of Emirati couples building lasting, happy futures with official government guidance, financial grants, and lifelong support.",

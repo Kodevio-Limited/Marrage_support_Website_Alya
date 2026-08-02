@@ -35,7 +35,7 @@ export default function ExploreByEmirate() {
         </div>
       </Reveal>
 
-      {/* Uniform Grid: All 5 Emirate Cards Share the Same Size on Every Breakpoint */}
+      {/* Uniform Grid: All 7 Emirate Cards Share the Same Size on Every Breakpoint */}
       <div className="flex flex-wrap justify-center gap-5 sm:gap-6 max-w-[1280px] mx-auto">
         {items.map((item, index) => (
           <Reveal key={index} delay={index * 0.1} direction="up" className="w-full sm:w-[calc(50%-12px)] lg:w-[calc((100%-48px)/3)]">
