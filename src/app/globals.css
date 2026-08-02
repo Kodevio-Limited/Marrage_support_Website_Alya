@@ -2,6 +2,13 @@
 
 :root {
   color-scheme: light;
+  background-color: #FFFFFF;
+  color: #111827;
+}
+
+html {
+  color-scheme: light !important;
+  background-color: #FFFFFF !important;
 }
 
 @theme {
@@ -24,11 +31,16 @@ html {
 }
 
 body {
-  background-color: #FFFFFF;
-  color: #111827;
+  background-color: #FFFFFF !important;
+  color: #111827 !important;
   font-family: var(--font-inter, Inter, sans-serif);
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
+}
+
+body,
+body * {
+  color-scheme: light !important;
 }
 
 /* ============ Arabic (RTL) overrides ============ */
