@@ -49,6 +49,9 @@ export default async function LocaleLayout({
       dir={dir}
       className={`${inter.variable} ${arabic.variable} h-full antialiased`}
     >
+      <head>
+        <meta name="color-scheme" content="light" />
+      </head>
       <body className="min-h-full flex flex-col bg-white text-gray-900">
         <NextIntlClientProvider>
           <Navbar />
