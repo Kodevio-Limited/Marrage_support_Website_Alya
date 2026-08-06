@@ -42,7 +42,12 @@ function UKIcon() {
     </svg>
   );
 }
-
+Look at the website and look at the admin website. What are the input filters there? With those input fields and required data that should come from the backend, you will identify those things and, with that, you will specify APIs.
+Things should work 100%.
+1. Look at the admin panel. What are the things the admin is controlling?
+2. Look at the UI and figure out what APIs are needed.
+3. While the GET request and POST request, specify the API.
+After you give the API specification, I will review it.
 export default function Navbar() {
   const t = useTranslations('nav');
   const locale = useLocale();
