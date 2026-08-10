@@ -1,12 +1,14 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ExternalLink, Link2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getPublishedNews, getNewsBySlug, type PublicNewsDetail, type PublicNews } from '@/lib/api/news';
 
 const containerVariants = {
   hidden: {},
@@ -42,23 +44,116 @@ const storyImages = [
   'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=200&auto=format&fit=crop',
 ];
 
+const HERO_FALLBACK =
+  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1200&auto=format&fit=crop';
+
+function useArticle(slugParam: string | null, fallbackTitle: string): {
+  title: string;
+  content: string[];
+  cover: string;
+  info: InfoValues;
+  resources: string[];
+  stories: { title: string; image: string; slug?: string }[];
+} {
+  const t = useTranslations('article');
+
+  const mockInfo = t.raw('infoValues') as InfoValues;
+  const mockResources = t.raw('resources') as string[];
+  const mockStories = (t.raw('stories') as StoryItem[]).map((s, i) => ({
+    ...s,
+    image: storyImages[i % storyImages.length],
+  }));
+
+  const [state, setState] = useState({
+    title: fallbackTitle,
+    content: [t('p1'), t('p2'), t('p3'), t('p4')],
+    cover: HERO_FALLBACK,
+    info: mockInfo,
+    resources: mockResources,
+    stories: mockStories,
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      let detail: PublicNewsDetail | null = null;
+      try {
+        if (slugParam) {
+          detail = await getNewsBySlug(slugParam);
+        }
+        if (!detail) {
+          const list = await getPublishedNews();
+          if (list?.[0]) {
+            detail = await getNewsBySlug(list[0].slug);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+
+      if (cancelled || !detail) return;
+
+      const paragraphs = detail.content
+        ? detail.content.split(/\n\n+/).filter(Boolean)
+        : [t('p1'), t('p2'), t('p3'), t('p4')];
+
+      const resourceTitles = Array.isArray(detail.resources)
+        ? (detail.resources as { title?: string; url?: string }[])
+            .map((r) => r.title || r.url || '')
+            .filter(Boolean)
+        : mockResources;
+
+      setState({
+        title: detail.articleTitle || fallbackTitle,
+        content: paragraphs.length ? paragraphs : [t('p1'), t('p2'), t('p3'), t('p4')],
+        cover: detail.coverImage || HERO_FALLBACK,
+        info: {
+          org: detail.organization || mockInfo.org,
+          city: detail.city || mockInfo.city,
+          emirates: detail.emirate || mockInfo.emirates,
+          author: detail.author || mockInfo.author,
+          published: detail.publishedDate || mockInfo.published,
+        },
+        resources: resourceTitles.length ? resourceTitles : mockResources,
+        stories:
+          detail.relatedStories?.length
+            ? detail.relatedStories.map((rs: PublicNews['id'] extends unknown ? any : any, i: number) => ({
+                title: rs.articleTitle,
+                image: rs.coverImage || storyImages[i % storyImages.length],
+                slug: rs.slug,
+              }))
+            : mockStories,
+      });
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugParam]);
+
+  return state;
+}
+
 export default function ArticlePage() {
   const t = useTranslations('article');
   const tnav = useTranslations('nav');
+  const searchParams = useSearchParams();
+  const slugParam = searchParams.get('slug');
 
-  const infoValues = t.raw('infoValues') as InfoValues;
-  const resources = t.raw('resources') as string[];
-  const stories = (t.raw('stories') as StoryItem[]).map((story, i) => ({
-    ...story,
-    image: storyImages[i],
-  }));
+  const { title, content, cover, info, resources, stories } = useArticle(
+    slugParam,
+    t('title'),
+  );
 
   const infoRows = [
-    { label: t('org'), value: infoValues.org },
-    { label: t('city'), value: infoValues.city },
-    { label: t('emirates'), value: infoValues.emirates },
-    { label: t('author'), value: infoValues.author },
-    { label: t('published'), value: infoValues.published },
+    { label: t('org'), value: info.org },
+    { label: t('city'), value: info.city },
+    { label: t('emirates'), value: info.emirates },
+    { label: t('author'), value: info.author },
+    { label: t('published'), value: info.published },
   ];
 
   return (
@@ -68,7 +163,7 @@ export default function ArticlePage() {
           <Breadcrumb items={[
             { label: tnav('home'), href: '/' },
             { label: tnav('news'), href: '/news' },
-            { label: t('title') },
+            { label: title },
           ]} />
         </div>
       </Reveal>
@@ -85,7 +180,7 @@ export default function ArticlePage() {
                 viewport={{ once: false }}
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
-                <Image src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1200&auto=format&fit=crop" alt={t('title')} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 853px" priority />
+                <Image src={cover} alt={title} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 853px" priority />
               </motion.div>
 
               <motion.h1
@@ -95,7 +190,7 @@ export default function ArticlePage() {
                 viewport={{ once: false }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
               >
-                {t('title')}
+                {title}
               </motion.h1>
 
               <motion.div
@@ -105,10 +200,9 @@ export default function ArticlePage() {
                 whileInView="visible"
                 viewport={{ once: false, margin: '-30px' }}
               >
-                <motion.p variants={itemVariants}>{t('p1')}</motion.p>
-                <motion.p variants={itemVariants}>{t('p2')}</motion.p>
-                <motion.p variants={itemVariants}>{t('p3')}</motion.p>
-                <motion.p variants={itemVariants}>{t('p4')}</motion.p>
+                {content.map((paragraph, i) => (
+                  <motion.p key={i} variants={itemVariants}>{paragraph}</motion.p>
+                ))}
               </motion.div>
             </div>
           </Reveal>
@@ -216,7 +310,10 @@ export default function ArticlePage() {
                   </motion.span>
                   {stories.map((story, i) => (
                     <motion.div key={i} variants={itemVariants}>
-                      <Link href="/news/article" className="flex items-center gap-[12px] w-full min-h-[60px]">
+                      <Link
+                        href={story.slug ? `/news/article?slug=${encodeURIComponent(story.slug)}` : '/news/article'}
+                        className="flex items-center gap-[12px] w-full min-h-[60px]"
+                      >
                         <div className="relative w-[80px] h-[60px] shrink-0 rounded-[12px] overflow-hidden">
                           <Image src={story.image} alt={story.title} fill className="object-cover" sizes="80px" />
                         </div>

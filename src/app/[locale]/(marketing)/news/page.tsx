@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { motion } from 'framer-motion';
@@ -7,6 +7,7 @@ import { ArrowRight, Search, ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getPublishedNews, type PublicNews } from '@/lib/api/news';
 
 const containerVariants = {
   hidden: {},
@@ -27,6 +28,11 @@ const itemVariants = {
 interface ArticleItem {
   title: string;
   description: string;
+}
+
+interface ArticleDisplay extends ArticleItem {
+  image: string;
+  slug?: string;
 }
 
 interface OrgItem {
@@ -59,6 +65,32 @@ const categoryIcons = ['🏛️', '💍', '👨‍👩‍👧‍👦', '🤝', '
 
 const orgIcons = ['💒', '🏗️', '👪', '🌟'];
 
+function useNewsArticles(fallback: ArticleItem[], fallbackImgs: string[]): ArticleDisplay[] {
+  const [articles, setArticles] = useState<ArticleDisplay[]>(() =>
+    fallback.map((a, i) => ({ ...a, image: fallbackImgs[i % fallbackImgs.length] })),
+  );
+  useEffect(() => {
+    let cancelled = false;
+    getPublishedNews()
+      .then((list: PublicNews[]) => {
+        if (cancelled || !list.length) return;
+        setArticles(
+          list.map((n) => ({
+            title: n.articleTitle,
+            description: n.articleTitle,
+            image: n.coverImage || fallbackImgs[0],
+            slug: n.slug,
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return articles;
+}
+
 export default function NewsPage() {
   const t = useTranslations('news');
   const tnav = useTranslations('nav');
@@ -66,10 +98,8 @@ export default function NewsPage() {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  const articles = (t.raw('articles') as ArticleItem[]).map((article, i) => ({
-    ...article,
-    image: articleImages[i],
-  }));
+  const rawArticles = t.raw('articles') as ArticleItem[];
+  const articles = useNewsArticles(rawArticles, articleImages);
 
   const categories = (t.raw('categories') as string[]).map((label, i) => ({
     icon: categoryIcons[i],
@@ -215,7 +245,12 @@ export default function NewsPage() {
                     </div>
                     <div className="flex flex-col gap-3 mt-auto">
                       <hr className="border-t border-[#E8CFC1]" />
-                      <Link href="/news/article" className="text-sm font-semibold text-[#781E36] hover:text-[#B83A4A] transition-colors">{t('readMore')} <span className="rtl:rotate-180 inline-block">→</span></Link>
+                      <Link
+                        href={article.slug ? `/news/article?slug=${encodeURIComponent(article.slug)}` : '/news/article'}
+                        className="text-sm font-semibold text-[#781E36] hover:text-[#B83A4A] transition-colors"
+                      >
+                        {t('readMore')} <span className="rtl:rotate-180 inline-block">→</span>
+                      </Link>
                     </div>
                   </div>
                 </motion.div>

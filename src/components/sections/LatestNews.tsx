@@ -1,21 +1,62 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Heading from '../shared/Heading';
 import { Calendar, ArrowRight, Bookmark } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
+import { getPublishedNews, type PublicNews } from '@/lib/api/news';
+import { homeContent } from '@/lib/mock-data/home';
 
-const images = [
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=800&auto=format&fit=crop',
-];
+const fallbackImages = homeContent.latestNews.map((n) => n.image.src);
+
+interface NewsDisplayItem {
+  tag: string;
+  date: string;
+  title: string;
+  excerpt: string;
+  image: string;
+  slug?: string;
+}
+
+function useLatestNews(
+  fallback: { tag: string; date: string; title: string; excerpt: string }[],
+  fallbackImgs: string[],
+): NewsDisplayItem[] {
+  const [items, setItems] = useState<NewsDisplayItem[]>(() =>
+    fallback.map((n, i) => ({ ...n, image: fallbackImgs[i % fallbackImgs.length] })),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getPublishedNews()
+      .then((list: PublicNews[]) => {
+        if (cancelled || !list.length) return;
+        const mapped: NewsDisplayItem[] = list.slice(0, 3).map((n) => ({
+          tag: n.category || 'News',
+          date: n.publishedDate || new Date().toISOString().slice(0, 10),
+          title: n.articleTitle,
+          excerpt: n.articleTitle,
+          image: n.coverImage || fallbackImgs[0],
+          slug: n.slug,
+        }));
+        setItems(mapped);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return items;
+}
 
 export default function LatestNews() {
   const t = useTranslations('home');
-  const items = t.raw('news') as { tag: string; date: string; title: string; excerpt: string }[];
+  const fallbackItems = t.raw('news') as { tag: string; date: string; title: string; excerpt: string }[];
+  const items = useLatestNews(fallbackItems, fallbackImages);
 
   return (
     <Section background="muted" spacing="none" id="news" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
@@ -37,17 +78,21 @@ export default function LatestNews() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
         {items.map((news, index) => (
           <Reveal key={index} delay={index * 0.1} direction="up">
-            <div
-              className="group flex h-auto min-h-[519px] w-full max-w-[400px] mx-auto flex-col justify-between overflow-hidden rounded-[24px] border border-[#E8CFC1] bg-white transition-all duration-300 hover:-translate-y-2 hover:border-[#781E36]"
-              style={{
-                boxShadow:
-                  '0px 4px 6px -4px rgba(0, 0, 0, 0.1), 0px 10px 15px -3px rgba(0, 0, 0, 0.1)',
-              }}
+            <Link
+              href={news.slug ? `/news/article?slug=${encodeURIComponent(news.slug)}` : '/news/article'}
+              className="block"
             >
+              <div
+                className="group flex h-auto min-h-[519px] w-full max-w-[400px] mx-auto flex-col justify-between overflow-hidden rounded-[24px] border border-[#E8CFC1] bg-white transition-all duration-300 hover:-translate-y-2 hover:border-[#781E36]"
+                style={{
+                  boxShadow:
+                    '0px 4px 6px -4px rgba(0, 0, 0, 0.1), 0px 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                }}
+              >
               {/* News Image */}
               <div className="relative h-[200px] sm:h-[230px] w-full overflow-hidden bg-gray-100">
                 <Image
-                  src={images[index % images.length]}
+                  src={news.image}
                   alt={news.title}
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -82,6 +127,7 @@ export default function LatestNews() {
                 </div>
               </div>
             </div>
+            </Link>
           </Reveal>
         ))}
       </div>
