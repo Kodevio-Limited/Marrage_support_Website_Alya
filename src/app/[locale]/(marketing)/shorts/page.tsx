@@ -1,12 +1,21 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { motion } from 'framer-motion';
-import { ChevronDown, Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { ChevronDown, Search, Loader2 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import type { PublicShort } from '@/lib/api/shorts';
+import { getPublishedShorts } from '@/lib/api/shorts';
+
+const FALLBACK_IMAGES = [
+  'https://plus.unsplash.com/premium_photo-1661277709298-a91380f68daa?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=600&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop',
+];
 
 const containerVariants = {
   hidden: {},
@@ -24,19 +33,18 @@ const itemVariants = {
   },
 };
 
-const videoImages = [
-  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=600&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=600&auto=format&fit=crop',
-];
-
-interface ShortVideo {
-  category: string;
-  subtitle: string;
-  views: string;
-  time: string;
-  duration: string;
+function buildShortParams(
+  q: string,
+  marital: string,
+  language: string,
+  date: string,
+): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (q) params.search = q;
+  if (marital) params.marital_stage = marital;
+  if (language) params.language = language;
+  if (date) params.date = date;
+  return params;
 }
 
 interface Topic {
@@ -52,28 +60,156 @@ interface Faq {
 export default function ShortsPage() {
   const t = useTranslations('shorts');
   const tNav = useTranslations('nav');
+  const locale = useLocale();
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
+  const [marital, setMarital] = useState('');
+  const [language, setLanguage] = useState('');
+  const [date, setDate] = useState('');
+  const [videos, setVideos] = useState<PublicShort[]>([]);
+  const [featured, setFeatured] = useState<PublicShort[]>([]);
+  const [filtered, setFiltered] = useState<PublicShort[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
 
-  const videos = (t.raw('videos') as ShortVideo[]).map((video, i) => ({
-    ...video,
-    thumbnail: videoImages[i % videoImages.length],
-  }));
+  useEffect(() => {
+    let mounted = true;
+    getPublishedShorts()
+      .then((items) => {
+        if (!mounted) return;
+        setVideos(items);
+        setFeatured(items.filter((v) => v.category !== undefined).slice(0, 4));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const featuredShown = filtered ?? featured;
 
   const topics = t.raw('topics') as Topic[];
   const contributorList = t.raw('contributorList') as string[];
   const faqs = t.raw('faqs') as Faq[];
+  const maritalOptions = t.raw('maritalOptions') as string[];
+  const languageOptions = t.raw('languageOptions') as string[];
+  const dateOptions = t.raw('dateOptions') as string[];
+
+  const isArabic = locale === 'ar';
+  const getTitle = (v: PublicShort) =>
+    isArabic && v.videoTitleAr ? v.videoTitleAr : v.videoTitle;
 
   const filters = [
-    { name: 'free', label: t('free'), isDropdown: false, options: [] as string[] },
-    { name: 'marital', label: t('marital'), isDropdown: true, options: t.raw('maritalOptions') as string[] },
-    { name: 'language', label: t('language'), isDropdown: true, options: t.raw('languageOptions') as string[] },
-    { name: 'date', label: t('date'), isDropdown: true, options: t.raw('dateOptions') as string[] },
+    { name: 'marital', label: t('marital'), isDropdown: true, options: maritalOptions },
+    { name: 'language', label: t('language'), isDropdown: true, options: languageOptions },
+    { name: 'date', label: t('date'), isDropdown: true, options: dateOptions },
   ];
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
   };
+
+  const MARITAL_VALUES = ['premarital', 'marital', 'postMarital'];
+  const LANGUAGE_VALUES = ['ar', 'en', 'both'];
+  const DATE_VALUES = ['week', 'month', 'year'];
+
+  function handleOptionSelect(name: string, index: number) {
+    setOpenDropdown(null);
+    if (name === 'marital') {
+      const val = MARITAL_VALUES[index] ?? '';
+      setMarital(marital === val ? '' : val);
+    } else if (name === 'language') {
+      const val = LANGUAGE_VALUES[index] ?? '';
+      setLanguage(language === val ? '' : val);
+    } else if (name === 'date') {
+      const val = DATE_VALUES[index] ?? '';
+      setDate(date === val ? '' : val);
+    }
+  }
+
+  function getSelectedLabel(filter: (typeof filters)[number]): string | null {
+    if (filter.name === 'marital') {
+      const idx = MARITAL_VALUES.indexOf(marital);
+      return idx >= 0 ? maritalOptions[idx] : null;
+    }
+    if (filter.name === 'language') {
+      const idx = LANGUAGE_VALUES.indexOf(language);
+      return idx >= 0 ? languageOptions[idx] : null;
+    }
+    if (filter.name === 'date') {
+      const idx = DATE_VALUES.indexOf(date);
+      return idx >= 0 ? dateOptions[idx] : null;
+    }
+    return null;
+  }
+
+  function handleResetFilters() {
+    setQuery('');
+    setMarital('');
+    setLanguage('');
+    setDate('');
+    setFiltered(null);
+    setOpenDropdown(null);
+  }
+
+  function handleApplyFilters() {
+    const q = query.trim();
+    if (!q && !marital && !language && !date) {
+      setFiltered(null);
+      return;
+    }
+    setSearching(true);
+    getPublishedShorts(buildShortParams(q, marital, language, date))
+      .then((items) => setFiltered(items.filter((v) => v.category !== undefined).slice(0, 4)))
+      .catch(() => setFiltered([]))
+      .finally(() => setSearching(false));
+  }
+
+  function videoCard(video: PublicShort, i: number, key: string) {
+    const coverImg = video.coverImage || FALLBACK_IMAGES[i % FALLBACK_IMAGES.length];
+    return (
+      <motion.div key={key} variants={itemVariants}
+        className="flex flex-col w-full rounded-[20px] border border-[#E8CFC1] bg-white overflow-hidden"
+        style={{ boxShadow: '0px 1px 2px -1px #0000001A, 0px 1px 3px 0px #0000001A' }}>
+        <Link href={`/shorts/${video.slug}`}>
+          <div className="relative w-full aspect-video bg-[#E8CFC1] overflow-hidden">
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${coverImg})` }} />
+            <div className="absolute top-3 right-3 rounded bg-black/60 px-1.5 py-0.5">
+              <span className="text-[10px] font-medium leading-[15px] text-white">{video.duration}</span>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex items-center justify-center h-[48px] w-[48px] rounded-full bg-white shadow-md cursor-pointer hover:bg-gray-100 transition-colors">
+                <svg width="16" height="18" viewBox="0 0 16 18" fill="none"><path d="M15.5 8.5L0.5 0.5V17.5L15.5 8.5Z" fill="#781E36" /></svg>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col p-4 gap-3 flex-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#989898]">{video.category || 'Video'}</span>
+            <span className="text-[15px] font-bold leading-5 text-[#781E36]">{getTitle(video)}</span>
+            <div className="flex items-center gap-3 mt-auto">
+              <div className="flex items-center gap-1">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#989898"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                <span className="text-[11px] font-normal text-[#989898]">{video.views || 0}</span>
+              </div>
+              <span className="text-[11px] font-normal text-[#989898]">
+                {video.publishedAt
+                  ? new Date(video.publishedAt).toLocaleDateString(locale === 'ar' ? 'ar-AE' : 'en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : ''}
+              </span>
+            </div>
+          </div>
+        </Link>
+      </motion.div>
+    );
+  }
 
   return (
     <div className="bg-[#FAEDE6] min-h-screen">
@@ -100,7 +236,7 @@ export default function ShortsPage() {
               </div>
               <div className="w-full max-w-[640px]">
                 <div className="relative w-full h-[280px] sm:h-[360px] md:h-[460px] lg:h-[600px] rounded-[20px] overflow-hidden">
-                  <Image src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1280&auto=format&fit=crop" alt={t('title')} fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" priority />
+                  <Image src={FALLBACK_IMAGES[0]} alt={t('title')} fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" priority />
                 </div>
               </div>
             </div>
@@ -113,30 +249,46 @@ export default function ShortsPage() {
           <div className="w-full rounded-[12px] border border-[#E8CFC1] bg-white p-[10px] flex flex-col gap-[10px]">
             <div className="flex items-center gap-[10px] w-full h-[48px] sm:h-[61px] rounded-[12px] border border-[#E8CFC1] bg-white px-[10px]">
               <Search className="h-5 w-5 text-[#989898] shrink-0" />
-              <input type="text" placeholder={t('searchPlaceholder')} className="w-full h-full bg-transparent text-sm font-normal text-gray-700 outline-none placeholder:text-[#989898]" />
+              <input
+                type="text"
+                placeholder={t('searchPlaceholder')}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full h-full bg-transparent text-sm font-normal text-gray-700 outline-none placeholder:text-[#989898]"
+              />
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center flex-wrap gap-3 sm:gap-6 w-full">
-              {filters.map((filter) => (
-                <div key={filter.name} className="relative w-full sm:w-auto">
-                  <button type="button" onClick={() => filter.isDropdown && toggleDropdown(filter.name)}
-                    className={`flex items-center justify-between w-full sm:w-[170px] h-[48px] rounded-[10px] border px-[10px] cursor-pointer transition-colors ${openDropdown === filter.name ? 'border-[#781E36]' : 'border-[#E8CFC1] hover:border-[#781E36]'} bg-white`}>
-                    <span className={`text-sm ${filter.isDropdown ? 'font-medium text-[#6B5B57]' : 'font-semibold text-[#781E36]'}`}>{filter.label}</span>
-                    {filter.isDropdown && (
-                      <ChevronDown className={`h-4 w-4 text-[#989898] transition-transform duration-200 ${openDropdown === filter.name ? 'rotate-180' : ''}`} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+              {filters.map((filter) => {
+                const selected = getSelectedLabel(filter);
+                const active = Boolean(selected);
+                return (
+                  <div key={filter.name} className="relative w-full">
+                    <button type="button"
+                      onClick={() => toggleDropdown(filter.name)}
+                      className={`flex items-center justify-between w-full h-[48px] rounded-[10px] border px-[10px] cursor-pointer transition-colors bg-white ${active || openDropdown === filter.name ? 'border-[#781E36]' : 'border-[#E8CFC1] hover:border-[#781E36]'}`}>
+                      <span className={`text-sm truncate ${active ? 'font-semibold text-[#781E36]' : 'font-medium text-[#6B5B57]'}`}>
+                        {selected || filter.label}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 shrink-0 text-[#989898] transition-transform duration-200 ${openDropdown === filter.name ? 'rotate-180' : ''}`} />
+                    </button>
+                    {openDropdown === filter.name && (
+                      <div className="absolute top-full left-0 mt-1 w-full rounded-[10px] border border-[#E8CFC1] bg-white shadow-lg z-20 overflow-hidden">
+                        {filter.options.map((opt, index) => (
+                          <button key={opt} type="button" onClick={() => handleOptionSelect(filter.name, index)}
+                            className="w-full px-[10px] py-2 text-left text-sm font-medium text-[#6B5B57] hover:bg-[#FAEDE6] hover:text-[#781E36] transition-colors">{opt}</button>
+                        ))}
+                      </div>
                     )}
-                  </button>
-                  {filter.isDropdown && openDropdown === filter.name && (
-                    <div className="absolute top-full left-0 mt-1 w-full rounded-[10px] border border-[#E8CFC1] bg-white shadow-lg z-20 overflow-hidden">
-                      {filter.options.map((opt) => (
-                        <button key={opt} type="button" onClick={() => setOpenDropdown(null)}
-                          className="w-full px-[10px] py-2 text-left text-sm font-medium text-[#6B5B57] hover:bg-[#FAEDE6] hover:text-[#781E36] transition-colors">{opt}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
-            <button className="w-full h-[52px] rounded-[12px] bg-[#781E36] px-6 py-3 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors">{t('search')}</button>
+            <div className="flex flex-col sm:flex-row gap-[10px] w-full">
+              <button className="w-full h-[52px] rounded-[12px] bg-[#781E36] px-6 py-3 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors sm:flex-1" onClick={handleApplyFilters}>
+                {searching ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : t('filterButton')}
+              </button>
+              <button className="w-full sm:w-auto h-[52px] rounded-[12px] bg-[#FAEDE6] px-6 py-3 text-sm font-bold text-[#781E36] border border-[#E8CFC1] hover:bg-[#F3D9CE] transition-colors" onClick={handleResetFilters}>{t('resetFilters')}</button>
+            </div>
           </div>
         </div>
       </Reveal>
@@ -148,43 +300,23 @@ export default function ShortsPage() {
               <span className="text-xl font-bold leading-7 text-[#781E36]">{t('featuredTitle')}</span>
               <span className="text-sm font-normal text-[#6B5B57]">{t('featuredSubtitle')}</span>
             </div>
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: false, margin: '-50px' }}
-            >
-              {videos.map((card, i) => (
-                <motion.div key={i} variants={itemVariants}
-                  className="flex flex-col w-full rounded-[20px] border border-[#E8CFC1] bg-white overflow-hidden"
-                  style={{ boxShadow: '0px 1px 2px -1px #0000001A, 0px 1px 3px 0px #0000001A' }}>
-                  <div className="relative w-full aspect-video bg-[#E8CFC1] overflow-hidden">
-                    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${card.thumbnail})` }} />
-                    <div className="absolute top-3 right-3 rounded bg-black/60 px-1.5 py-0.5">
-                      <span className="text-[10px] font-medium leading-[15px] text-white">{card.duration}</span>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex items-center justify-center h-[48px] w-[48px] rounded-full bg-white shadow-md cursor-pointer hover:bg-gray-100 transition-colors">
-                        <svg width="16" height="18" viewBox="0 0 16 18" fill="none"><path d="M15.5 8.5L0.5 0.5V17.5L15.5 8.5Z" fill="#781E36" /></svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col p-4 gap-3 flex-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#989898]">{card.category}</span>
-                    <span className="text-[15px] font-bold leading-5 text-[#781E36]">{card.subtitle}</span>
-                    <div className="flex items-center gap-3 mt-auto">
-                      <div className="flex items-center gap-1">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#989898"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        <span className="text-[11px] font-normal text-[#989898]">{card.views}</span>
-                      </div>
-                      <span className="text-[11px] font-normal text-[#989898]">{card.time}</span>
-                    </div>
-                    <Link href="/shorts/video-details" className="flex items-center justify-center w-full h-[52px] rounded-[12px] bg-[#781E36] text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors mt-1">{t('viewDetails')}</Link>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
+            {loading || searching ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-[#781E36]" />
+              </div>
+            ) : featuredShown.length === 0 ? (
+              <p className="text-sm font-normal text-[#6B5B57]">{t('empty')}</p>
+            ) : (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full"
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: false, margin: '-50px' }}
+              >
+                {featuredShown.map((video, i) => videoCard(video, i, `featured-${video.id}`))}
+              </motion.div>
+            )}
           </div>
         </div>
       </Reveal>
@@ -196,43 +328,23 @@ export default function ShortsPage() {
               <span className="text-xl font-bold leading-7 text-[#781E36]">{t('libraryTitle')}</span>
               <span className="text-sm font-normal text-[#6B5B57]">{t('librarySubtitle')}</span>
             </div>
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full"
-              variants={containerVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: false, margin: '-50px' }}
-            >
-              {videos.map((card, i) => (
-                <motion.div key={i} variants={itemVariants}
-                  className="flex flex-col w-full rounded-[20px] border border-[#E8CFC1] bg-white overflow-hidden"
-                  style={{ boxShadow: '0px 1px 2px -1px #0000001A, 0px 1px 3px 0px #0000001A' }}>
-                  <div className="relative w-full aspect-video bg-[#E8CFC1] overflow-hidden">
-                    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${card.thumbnail})` }} />
-                    <div className="absolute top-3 right-3 rounded bg-black/60 px-1.5 py-0.5">
-                      <span className="text-[10px] font-medium leading-[15px] text-white">{card.duration}</span>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="flex items-center justify-center h-[48px] w-[48px] rounded-full bg-white shadow-md cursor-pointer hover:bg-gray-100 transition-colors">
-                        <svg width="16" height="18" viewBox="0 0 16 18" fill="none"><path d="M15.5 8.5L0.5 0.5V17.5L15.5 8.5Z" fill="#781E36" /></svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col p-4 gap-3 flex-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-[#989898]">{card.category}</span>
-                    <span className="text-[15px] font-bold leading-5 text-[#781E36]">{card.subtitle}</span>
-                    <div className="flex items-center gap-3 mt-auto">
-                      <div className="flex items-center gap-1">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="#989898"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-                        <span className="text-[11px] font-normal text-[#989898]">{card.views}</span>
-                      </div>
-                      <span className="text-[11px] font-normal text-[#989898]">{card.time}</span>
-                    </div>
-                    <Link href="/shorts/video-details" className="flex items-center justify-center w-full h-[52px] rounded-[12px] bg-[#781E36] text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors mt-1">{t('viewDetails')}</Link>
-                  </div>
-                </motion.div>
-              ))}
-            </motion.div>
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-[#781E36]" />
+              </div>
+            ) : videos.length === 0 ? (
+              <p className="text-sm font-normal text-[#6B5B57]">{t('empty')}</p>
+            ) : (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full"
+                variants={containerVariants}
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: false, margin: '-50px' }}
+              >
+                {videos.map((video, i) => videoCard(video, i + 1, `library-${video.id}`))}
+              </motion.div>
+            )}
           </div>
         </div>
       </Reveal>
@@ -340,3 +452,5 @@ export default function ShortsPage() {
     </div>
   );
 }
+
+type ShortVideo = PublicShort;
