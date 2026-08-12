@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -138,6 +138,20 @@ function useArticle(slugParam: string | null, fallbackTitle: string): {
 }
 
 export default function ArticlePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+          <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+        </div>
+      }
+    >
+      <ArticlePageInner />
+    </Suspense>
+  );
+}
+
+function ArticlePageInner() {
   const t = useTranslations('article');
   const tnav = useTranslations('nav');
   const searchParams = useSearchParams();

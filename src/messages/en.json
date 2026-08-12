@@ -28,7 +28,16 @@
     "media": "Media Center & News",
     "contacts": "Contacts",
     "allRights": "All rights reserved.",
-    "builtFor": "Built for Emirati Families"
+    "builtFor": "Built for Emirati Families",
+    "privacyPolicy": "Privacy Policy",
+    "termsConditions": "Terms & Conditions"
+  },
+  "static": {
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms & Conditions",
+    "loading": "Loading content...",
+    "empty": "Content is not available yet.",
+    "backHome": "Back to Home"
   },
   "home": {
     "hero": {
@@ -74,6 +83,7 @@
     ],
     "initiativesTitle": "Upcoming National Initiatives",
     "initiativesSubtitle": "Empowering Emirati youth with long-term marital stability and family support programs.",
+    "initiativesCta": "Learn More & Register",
     "initiatives": [
       { "badge": "Registration Open", "title": "Mawaddah National Family Preparedness Program", "description": "A comprehensive 4-week interactive workshop series covering effective communication, emotional intelligence, conflict resolution, and financial budgeting for engaged couples.", "details": "Starts Aug 15 • Virtual & In-Person across Abu Dhabi & Dubai", "ctaLabel": "Learn More & Register" },
       { "badge": "Government Supported", "title": "Al Thaker Marriage Grant & Housing Relief 2026", "description": "Official government financial relief program providing non-refundable grants up to AED 70,000 alongside subsidized residential land plots for eligible Emirati citizens.", "details": "Application Window Open • Eligible Nationwide", "ctaLabel": "Check Grant Eligibility" }
@@ -433,6 +443,9 @@
   },
   "initiative": {
     "title": "Mass Marriage Program 2026",
+    "browseInitiatives": "Browse Initiatives",
+    "currentInitiative": "Current Initiative",
+    "noCurrentInitiative": "No current initiative available",
     "description": "A comprehensive government initiative designed to alleviate the financial burden of marriage for Emirati youth, fostering family stability and community cohesion.",
     "financialSupport": "Financial Support",
     "openNow": "Open Now",
@@ -495,6 +508,9 @@
       { "tag": "Education", "date": "February 28, 2026", "title": "Marriage Preparation Workshops", "excerpt": "Interactive workshops covering financial planning, communication skills, and legal awareness for soon-to-be-married couples." }
     ],
     "readFullArticle": "Read Full Article",
+    "featured": "Featured",
+    "notFound": "This initiative could not be found.",
+    "backToInitiatives": "Browse All Initiatives",
     "ctaTitle": "Find the right marriage support program for your family",
     "ctaText": "Explore the wide range of government and private initiative financial support and expert counseling service available across the UAE.",
     "ctaExplore": "Explore Initiatives",
@@ -509,6 +525,7 @@
     "searchPlaceholder": "Search consultation sessions...",
     "search": "Search",
     "free": "Free",
+    "reset": "Reset filters",
     "marital": "Marital",
     "language": "Arabic",
     "maritalOptions": ["Premarital", "Marital", "Post-marital"],
@@ -648,7 +665,10 @@
     "paymentMethod": "Payment Method",
     "creditDebit": "Credit or Debit Card",
     "applePay": "Apple Pay",
-    "agreeText": "I agree to the terms and conditions and privacy policy of Marage Support Services.",
+    "agreePrefix": "I agree to the",
+    "agreeTerms": "terms and conditions",
+    "agreeAnd": "and",
+    "agreePrivacy": "privacy policy",
     "confirmBooking": "Confirm Booking",
     "backToSession": "Back to Session"
   },

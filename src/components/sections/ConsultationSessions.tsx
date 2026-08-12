@@ -1,22 +1,67 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Button from '../shared/Button';
 import Heading from '../shared/Heading';
-import { Calendar, Clock, Users } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
+import {
+  getPublishedConsultations,
+  type PublicConsultation,
+} from '@/lib/api/consultations';
 
-const images = [
+const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=300&auto=format&fit=crop',
 ];
 
+type LocalizedSession = {
+  id: string;
+  slug: string;
+  title: string;
+  name: string;
+  date: string;
+  time: string;
+  image: string;
+};
+
+function toLocalized(s: PublicConsultation, index: number): LocalizedSession {
+  return {
+    id: s.id,
+    slug: s.slug,
+    title: s.sessionTitle,
+    name: s.category || s.sessionType || s.emirates || '',
+    date: s.date || '',
+    time: s.startTime ? `${s.startTime}${s.endTime ? ` - ${s.endTime}` : ''}` : s.duration || '',
+    image: FALLBACK_IMAGES[index % FALLBACK_IMAGES.length],
+  };
+}
+
 export default function ConsultationSessions() {
   const t = useTranslations('home');
-  const items = t.raw('consultations') as { title: string; name: string; date: string; time: string; seats: string; ctaLabel: string }[];
+  const ctaLabel = t.raw('consultations') as { ctaLabel: string }[];
+  const cta = ctaLabel?.[0]?.ctaLabel ?? 'Book Now';
+
+  const [items, setItems] = useState<LocalizedSession[]>([]);
   const [activeTab, setActiveTab] = useState<'free' | 'paid'>('free');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const list = await getPublishedConsultations({});
+      if (cancelled || !list?.length) return;
+      const sessions = list.slice(0, 2).map((s, i) => toLocalized(s, i));
+      setItems(sessions);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = activeTab === 'free' ? items : items.slice(1);
 
   return (
     <Section background="muted" spacing="none" id="consultation" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
@@ -64,10 +109,10 @@ export default function ConsultationSessions() {
           </div>
         </Reveal>
 
-        {/* Grid of 2 Cards */}
+        {/* Grid of Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {items.map((session, index) => (
-            <Reveal key={index} delay={index * 0.15} direction="up">
+          {filtered.map((session, index) => (
+            <Reveal key={`${session.id}-${index}`} delay={index * 0.15} direction="up">
               <div
                 className="group flex h-auto min-h-[263px] w-full max-w-[620px] mx-auto flex-col rounded-[24px] bg-white p-6 transition-all duration-300 hover:-translate-y-1.5"
                 style={{
@@ -79,7 +124,7 @@ export default function ConsultationSessions() {
                 <div className="flex items-center gap-4">
                   <div className="relative h-[56px] w-[56px] shrink-0 overflow-hidden rounded-full bg-gray-100">
                     <Image
-                      src={images[index % images.length]}
+                      src={session.image}
                       alt={session.title}
                       fill
                       className="object-cover"
@@ -110,19 +155,21 @@ export default function ConsultationSessions() {
                       <Clock className="h-3.5 w-3.5 text-[#781E36] shrink-0" />
                       {session.time}
                     </span>
-                    <span className="flex items-center gap-1.5 font-bold text-[#781E36] col-span-2">
-                      <Users className="h-3.5 w-3.5 shrink-0" />
-                      {session.seats}
-                    </span>
                   </div>
-                  <Button href="/consultation/details" size="sm" variant="primary" className="w-full justify-center">
-                    {session.ctaLabel}
+                  <Button href={`/consultation/details?slug=${session.slug}`} size="sm" variant="primary" className="w-full justify-center">
+                    {cta}
                   </Button>
                 </div>
               </div>
             </Reveal>
           ))}
         </div>
+
+        {filtered.length === 0 && (
+          <p className="text-center text-base font-normal text-[#6B5B57]">
+            No sessions available just yet.
+          </p>
+        )}
       </div>
     </Section>
   );

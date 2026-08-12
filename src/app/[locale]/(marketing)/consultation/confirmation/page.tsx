@@ -1,11 +1,13 @@
 'use client';
-import React from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Link } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getBookingByReference, type PublicBooking } from '@/lib/api/consultations';
 
 const containerVariants = {
   hidden: {},
@@ -26,12 +28,99 @@ const itemVariants = {
 type FieldItem = { label: string; value: string };
 
 export default function ConfirmationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+          <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+        </div>
+      }
+    >
+      <ConfirmationPageInner />
+    </Suspense>
+  );
+}
+
+function ConfirmationPageInner() {
   const t = useTranslations('confirmation');
   const tNav = useTranslations('nav');
   const tB = useTranslations('consultation');
+  const searchParams = useSearchParams();
+  const refParam = searchParams.get('ref');
 
-  const bookingFields = t.raw('bookingFields') as FieldItem[];
-  const sessionFields = t.raw('sessionFields') as FieldItem[];
+  const [booking, setBooking] = useState<PublicBooking | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!refParam) {
+        if (!cancelled) setLoaded(true);
+        return;
+      }
+      const b = await getBookingByReference(refParam);
+      if (cancelled) return;
+      setBooking(b);
+      setLoaded(true);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [refParam]);
+
+  if (!loaded) {
+    return (
+      <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+        <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+      </div>
+    );
+  }
+
+  const snap = booking?.sessionSnapshot;
+
+  const bookingFields: FieldItem[] = booking
+    ? [
+        { label: t.raw('bookingFields')[0].label, value: booking.reference },
+        {
+          label: t.raw('bookingFields')[1].label,
+          value: booking.created_at ? new Date(booking.created_at).toLocaleDateString() : '',
+        },
+        {
+          label: t.raw('bookingFields')[2].label,
+          value: booking.status === 'confirmed' ? 'Confirmed' : booking.status,
+        },
+        {
+          label: t.raw('bookingFields')[3].label,
+          value: booking.paymentSuccess ? 'Paid' : 'Pending',
+        },
+        { label: t.raw('bookingFields')[4].label, value: booking.fullName },
+        { label: t.raw('bookingFields')[5].label, value: booking.email },
+        { label: t.raw('bookingFields')[6].label, value: booking.contactNumber },
+        { label: t.raw('bookingFields')[7].label, value: booking.userType === 'individual' ? 'Individual' : booking.userType },
+      ]
+    : (t.raw('bookingFields') as FieldItem[]);
+
+  const sessionFields: FieldItem[] = snap
+    ? [
+        { label: t.raw('sessionFields')[0].label, value: snap.sessionTitle || '' },
+        { label: t.raw('sessionFields')[1].label, value: snap.counselor || '' },
+        { label: t.raw('sessionFields')[2].label, value: '' },
+        { label: t.raw('sessionFields')[3].label, value: '' },
+        { label: t.raw('sessionFields')[4].label, value: `${snap.date || ''}${snap.startTime ? ` - ${snap.startTime}` : ''}` },
+        { label: t.raw('sessionFields')[5].label, value: snap.duration || '' },
+        { label: t.raw('sessionFields')[6].label, value: '' },
+        { label: t.raw('sessionFields')[7].label, value: snap.meetingFormat === 'onsite' ? 'Onsite' : 'Online via Zoom' },
+        {
+          label: t.raw('sessionFields')[8].label,
+          value: snap.meetingFormat === 'onsite' ? 'Onsite' : 'Online',
+        },
+      ]
+    : (t.raw('sessionFields') as FieldItem[]);
+
+  const amount = Number(booking?.amount) || 0;
+  const fee = Number(snap ? booking?.amount : 0) || 0;
+
   const importantNotes = t.raw('notes') as string[];
 
   return (
@@ -180,39 +269,36 @@ export default function ConfirmationPage() {
                       whileInView="visible"
                       viewport={{ once: false, margin: '-30px' }}
                     >
-                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full mt-2">
-                        <span className="text-base md:text-xl font-normal text-[#6B5B57]">
-                          {t('sessionFee')}
-                        </span>
-                        <span className="text-base md:text-xl font-medium text-[#781E36]">
-                          100 AED
-                        </span>
-                      </motion.div>
-                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full">
-                        <span className="text-base md:text-xl font-normal text-[#6B5B57]">
-                          {t('processingFee')}
-                        </span>
-                        <span className="text-base md:text-xl font-medium text-[#781E36]">
-                          15 AED
-                        </span>
-                      </motion.div>
-                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full">
-                        <span className="text-base md:text-xl font-normal text-[#6B5B57]">
-                          {t('discount')}
-                        </span>
-                        <span className="text-base md:text-xl font-medium text-[#B83A4A]">
-                          -20 AED
-                        </span>
-                      </motion.div>
-                      <motion.hr variants={itemVariants} className="border-t border-[#E8CFC1] w-full my-2" />
-                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full">
-                        <span className="font-bold text-lg md:text-2xl font-bold text-[#781E36]">
-                          {t('totalPaid')}
-                        </span>
-                        <span className="font-bold text-lg md:text-2xl font-bold text-[#781E36]">
-                          95 AED
-                        </span>
-                      </motion.div>
+                      {booking && Number(booking.amount) <= 0 ? (
+                        <motion.div variants={itemVariants} className="flex items-center justify-between w-full mt-2">
+                          <span className="text-base md:text-xl font-normal text-[#6B5B57]">
+                            {t('totalPaid')}
+                          </span>
+                          <span className="text-base md:text-xl font-bold text-[#781E36]">
+                            Free
+                          </span>
+                        </motion.div>
+                      ) : (
+                        <>
+                          <motion.div variants={itemVariants} className="flex items-center justify-between w-full mt-2">
+                            <span className="text-base md:text-xl font-normal text-[#6B5B57]">
+                              {t('sessionFee')}
+                            </span>
+                            <span className="text-base md:text-xl font-medium text-[#781E36]">
+                              {fee} AED
+                            </span>
+                          </motion.div>
+                          <motion.hr variants={itemVariants} className="border-t border-[#E8CFC1] w-full my-2" />
+                          <motion.div variants={itemVariants} className="flex items-center justify-between w-full">
+                            <span className="font-bold text-lg md:text-2xl font-bold text-[#781E36]">
+                              {t('totalPaid')}
+                            </span>
+                            <span className="font-bold text-lg md:text-2xl font-bold text-[#781E36]">
+                              {amount} AED
+                            </span>
+                          </motion.div>
+                        </>
+                      )}
                     </motion.div>
                   </motion.div>
                 </Reveal>
@@ -256,32 +342,36 @@ export default function ConfirmationPage() {
                 viewport={{ once: false, margin: '-50px' }}
                 transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1], delay: 0.5 }}
               >
-                <motion.div
-                  className="w-full"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Link
-                    href="#"
-                    className="flex items-center justify-center w-full h-[60px] rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors"
+                {booking && (
+                  <motion.div
+                    className="w-full"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {t('download')}
-                  </Link>
-                </motion.div>
-                <motion.div
-                  className="w-full"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Link
-                    href="/consultation"
-                    className="flex items-center justify-center w-full h-[60px] rounded-[10px] border-2 border-[#781E36] bg-transparent px-[10px] text-base font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
+                    <Link
+                      href={`/consultation?search=${encodeURIComponent(booking.sessionSnapshot?.sessionTitle ?? '')}`}
+                      className="flex items-center justify-center w-full h-[60px] rounded-[10px] border-2 border-[#781E36] bg-transparent px-[10px] text-base font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
+                    >
+                      {t('return')}
+                    </Link>
+                  </motion.div>
+                )}
+                {!booking && (
+                  <motion.div
+                    className="w-full"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {t('return')}
-                  </Link>
-                </motion.div>
+                    <Link
+                      href="/consultation"
+                      className="flex items-center justify-center w-full h-[60px] rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors"
+                    >
+                      {t('return')}
+                    </Link>
+                  </motion.div>
+                )}
               </motion.div>
             </div>
           </div>

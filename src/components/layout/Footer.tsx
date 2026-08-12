@@ -86,6 +86,8 @@ export default function Footer() {
                 { label: t('contact'), href: '/contact' },
                 { label: t('nationalInitiatives'), href: '/initiatives' },
                 { label: t('emiratesCenters'), href: '/emirates' },
+                { label: t('privacyPolicy'), href: '/privacy-policy' },
+                { label: t('termsConditions'), href: '/terms-and-conditions' },
               ].map((item, i) => (
                 <motion.li
                   key={item.label}

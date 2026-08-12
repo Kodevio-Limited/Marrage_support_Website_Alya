@@ -1,11 +1,17 @@
 'use client';
-import React from 'react';
-import { Link } from '@/i18n/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { Link, useRouter } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { User, FileText, Clock, Globe, Calendar, MapPin, ChevronDown, CreditCard } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import {
+  getConsultationBySlug,
+  createBooking,
+  type PublicConsultationDetail,
+} from '@/lib/api/consultations';
 
 const containerVariants = {
   hidden: {},
@@ -24,17 +30,154 @@ const itemVariants = {
 };
 
 type SummaryItem = { label: string; value: string };
-
-const summaryIcons = [User, FileText, Clock, Globe, Calendar, MapPin];
+type PaymentMethod = 'card' | 'apple_pay';
 
 export default function BookingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+          <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+        </div>
+      }
+    >
+      <BookingPageInner />
+    </Suspense>
+  );
+}
+
+function BookingPageInner() {
   const t = useTranslations('booking');
   const tNav = useTranslations('nav');
   const tB = useTranslations('consultation');
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const slugParam = searchParams.get('slug');
 
-  const summary = t.raw('summary') as SummaryItem[];
+  const [session, setSession] = useState<PublicConsultationDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    country: '',
+    preferredLanguage: '',
+  });
+  const [payment, setPayment] = useState<PaymentMethod>('card');
+  const [agree, setAgree] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      let detail: PublicConsultationDetail | null = null;
+      if (slugParam) {
+        detail = await getConsultationBySlug(slugParam);
+      }
+      if (cancelled) return;
+      setSession(detail || null);
+      setLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [slugParam]);
+
   const countries = t.raw('countries') as string[];
   const languages = t.raw('languages') as string[];
+
+  if (loading) {
+    return (
+      <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+        <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="bg-[#FAEDE6] min-h-screen">
+        <Reveal delay={0}>
+          <div className="mx-auto w-full max-w-[1440px] px-4 md:px-8 pt-5 pb-3">
+            <Breadcrumb items={[
+              { label: tNav('home'), href: '/' },
+              { label: tB('breadcrumbParent'), href: '/consultation' },
+              { label: t('breadcrumbCurrent') },
+            ]} />
+          </div>
+        </Reveal>
+        <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-24 flex flex-col items-center gap-6 text-center">
+          <p className="text-base font-normal text-[#6B5B57]">Session not found.</p>
+          <Link
+            href="/consultation"
+            className="flex h-[52px] items-center justify-center rounded-[12px] bg-[#781E36] px-6 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors"
+          >
+            {tB('browseSessions')}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const fee = Number(session.fee) || 0;
+  const processingFee = Number(session.processingFee) || 0;
+  const discount = Number(session.discount) || 0;
+  const total = session.isFree ? 0 : Math.max(fee + processingFee - discount, 0);
+
+  const summaryLabels = t.raw('summary') as { label: string; value: string }[];
+
+  const summary: SummaryItem[] = [
+    { label: summaryLabels[0]?.label ?? '', value: session.counselor || '—' },
+    { label: summaryLabels[1]?.label ?? '', value: session.sessionTitle },
+    { label: summaryLabels[2]?.label ?? '', value: session.duration || `${session.startTime} - ${session.endTime}` },
+    {
+      label: summaryLabels[3]?.label ?? '',
+      value: session.language === 'ar' ? 'Arabic' : session.language === 'en' ? 'English' : 'Both',
+    },
+    { label: summaryLabels[4]?.label ?? '', value: session.date || '—' },
+    {
+      label: summaryLabels[5]?.label ?? '',
+      value: session.meetingFormat === 'onsite' ? 'Onsite' : 'Online',
+    },
+  ];
+
+  const summaryIcons = [User, FileText, Clock, Globe, Calendar, MapPin];
+
+  async function handleSubmit() {
+    setErrorMessage(null);
+    if (!session) return;
+    if (!form.fullName.trim() || !form.phone.trim() || !form.email.trim() || !form.country) {
+      setErrorMessage('Please fill in all required fields.');
+      return;
+    }
+    if (!session.isFree && !agree) {
+      setErrorMessage('Please agree to the terms and conditions.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const booking = await createBooking({
+        consultationId: session.id,
+        fullName: form.fullName.trim(),
+        contactNumber: form.phone.trim(),
+        email: form.email.trim(),
+        userType: 'individual',
+        paymentMethod: session.isFree ? 'free' : payment,
+      });
+      router.push(`/consultation/confirmation?ref=${booking.reference}`);
+    } catch (e) {
+      const err = e as Error & { details?: Record<string, string[]> };
+      const firstDetail = err.details
+        ? Object.values(err.details)[0]?.[0]
+        : undefined;
+      setErrorMessage(firstDetail || err.message || 'Failed to submit your booking. Please try again.');
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="bg-[#FAEDE6] min-h-screen">
@@ -55,7 +198,7 @@ export default function BookingPage() {
             <Reveal delay={0.1} direction="up">
               <div>
                 <h2 className="text-[#781E36] text-2xl md:text-[32px] font-semibold leading-[24px] md:leading-[36px] tracking-[0.1px]">
-                  {t('title')}
+                  {session.sessionTitle}
                 </h2>
                 <p className="text-[#6B5B57] mt-4 text-sm md:text-base leading-6">
                   {t('subtitle')}
@@ -120,6 +263,8 @@ export default function BookingPage() {
                       </label>
                       <input
                         type="text"
+                        value={form.fullName}
+                        onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
                         placeholder={t('fullNamePlaceholder')}
                         className="w-full h-[55px] rounded-[12px] border border-[#E8CFC1] bg-white px-4 text-[#6B5B57] outline-none focus:border-[#781E36] transition-all duration-300 focus:shadow-[0_0_0_3px_rgba(120,30,54,0.15)]"
                       />
@@ -130,6 +275,8 @@ export default function BookingPage() {
                       </label>
                       <input
                         type="tel"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                         placeholder={t('phonePlaceholder')}
                         className="w-full h-[55px] rounded-[12px] border border-[#E8CFC1] bg-white px-4 text-[#6B5B57] outline-none focus:border-[#781E36] transition-all duration-300 focus:shadow-[0_0_0_3px_rgba(120,30,54,0.15)]"
                       />
@@ -142,6 +289,8 @@ export default function BookingPage() {
                     </label>
                     <input
                       type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                       placeholder={t('emailPlaceholder')}
                       className="w-full h-[55px] rounded-[12px] border border-[#E8CFC1] bg-white px-4 text-[#6B5B57] outline-none focus:border-[#781E36] transition-all duration-300 focus:shadow-[0_0_0_3px_rgba(120,30,54,0.15)]"
                     />
@@ -154,6 +303,8 @@ export default function BookingPage() {
                       </label>
                       <div className="relative w-full">
                         <select
+                          value={form.country}
+                          onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
                           className="w-full h-[55px] rounded-[12px] border border-[#E8CFC1] bg-white px-4 text-[#6B5B57] appearance-none outline-none focus:border-[#781E36] transition-all duration-300 focus:shadow-[0_0_0_3px_rgba(120,30,54,0.15)]"
                         >
                           <option value="">{t('selectCountry')}</option>
@@ -166,10 +317,12 @@ export default function BookingPage() {
                     </div>
                     <div className="flex flex-col gap-2 w-full">
                       <label className="text-[17px] md:text-[19px] font-medium leading-[140%] text-[#781E36]">
-                        {t('preferredLanguage')} <span className="text-[#B83A4A]">*</span>
+                        {t('preferredLanguage')}
                       </label>
                       <div className="relative w-full">
                         <select
+                          value={form.preferredLanguage}
+                          onChange={(e) => setForm((f) => ({ ...f, preferredLanguage: e.target.value }))}
                           className="w-full h-[55px] rounded-[12px] border border-[#E8CFC1] bg-white px-4 text-[#6B5B57] appearance-none outline-none focus:border-[#781E36] transition-all duration-300 focus:shadow-[0_0_0_3px_rgba(120,30,54,0.15)]"
                         >
                           <option value="">{t('selectLanguage')}</option>
@@ -205,43 +358,60 @@ export default function BookingPage() {
                   </span>
                 </motion.div>
 
-                <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
-                  <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
-                    {t('sessionFee')}
-                  </span>
-                  <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#781E36]">
-                    100 AED
-                  </span>
-                </motion.div>
+                {session.isFree ? (
+                  <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
+                    <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
+                      {t('total')}
+                    </span>
+                    <span className="text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
+                      Free
+                    </span>
+                  </motion.div>
+                ) : (
+                  <>
+                    <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
+                      <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
+                        {t('sessionFee')}
+                      </span>
+                      <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#781E36]">
+                        {fee} AED
+                      </span>
+                    </motion.div>
 
-                <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
-                  <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
-                    {t('processingFee')}
-                  </span>
-                  <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#781E36]">
-                    15 AED
-                  </span>
-                </motion.div>
+                    {processingFee > 0 && (
+                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
+                        <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
+                          {t('processingFee')}
+                        </span>
+                        <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#781E36]">
+                          {processingFee} AED
+                        </span>
+                      </motion.div>
+                    )}
 
-                <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
-                  <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
-                    {t('discount')}
-                  </span>
-                  <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#B83A4A]">
-                    -20 AED
-                  </span>
-                </motion.div>
+                    {discount > 0 && (
+                      <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
+                        <span className="text-lg md:text-2xl font-normal leading-[30px] tracking-[0.1px] text-[#6B5B57]">
+                          {t('discount')}
+                        </span>
+                        <span className="text-lg md:text-2xl font-medium leading-[30px] tracking-[0.1px] text-[#B83A4A]">
+                          -{discount} AED
+                        </span>
+                      </motion.div>
+                    )}
 
-                <motion.hr variants={itemVariants} className="border-t border-[#E8CFC1] w-full" />
+                    <motion.hr variants={itemVariants} className="border-t border-[#E8CFC1] w-full" />
 
-                <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
-                  <span className="font-bold text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
-                    {t('total')}
-                  </span>
-                  <span className="font-bold text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
-                    95 AED
-                  </span>
-                </motion.div>
+                    <motion.div variants={itemVariants} className="flex items-center justify-between w-full max-w-[384px] h-auto min-h-[30px]">
+                      <span className="text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
+                        {t('total')}
+                      </span>
+                      <span className="text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
+                        {total} AED
+                      </span>
+                    </motion.div>
+                  </>
+                )}
 
                 <motion.div variants={itemVariants} className="flex flex-col gap-[18px] w-full max-w-[384px] mt-2">
                   <div className="flex items-center justify-between w-full">
@@ -250,29 +420,33 @@ export default function BookingPage() {
                     </span>
                   </div>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => setPayment('card')}
                     className="flex items-center gap-[8px] w-full h-[56px] rounded-[24px] border border-[#E8CFC1] bg-white px-4 cursor-pointer"
                     whileHover={{ scale: 1.02, borderColor: '#781E36' }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <div className="flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] border-[#781E36]">
-                      <div className="h-[20px] w-[20px] rounded-full bg-[#781E36]" />
+                    <div className={`flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] transition-colors ${payment === 'card' ? 'border-[#781E36]' : 'border-[#E8CFC1]'}`}>
+                      <div className={`h-[20px] w-[20px] rounded-full transition-colors ${payment === 'card' ? 'bg-[#781E36]' : 'bg-transparent'}`} />
                     </div>
                     <span className="flex-1 text-base font-normal text-[#6B5B57]">
                       {t('creditDebit')}
                     </span>
                     <CreditCard className="h-6 w-6 text-[#6B5B57]" />
-                  </motion.div>
+                  </motion.button>
 
-                  <motion.div
+                  <motion.button
+                    type="button"
+                    onClick={() => setPayment('apple_pay')}
                     className="flex items-center gap-[8px] w-full h-[56px] rounded-[24px] border border-[#E8CFC1] bg-white px-4 cursor-pointer"
                     whileHover={{ scale: 1.02, borderColor: '#781E36' }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <div className="flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] border-[#E8CFC1]">
-                      <div className="h-[20px] w-[20px] rounded-full bg-transparent" />
+                    <div className={`flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] transition-colors ${payment === 'apple_pay' ? 'border-[#781E36]' : 'border-[#E8CFC1]'}`}>
+                      <div className={`h-[20px] w-[20px] rounded-full transition-colors ${payment === 'apple_pay' ? 'bg-[#781E36]' : 'bg-transparent'}`} />
                     </div>
                     <span className="flex-1 text-base font-normal text-[#6B5B57]">
                       {t('applePay')}
@@ -280,22 +454,49 @@ export default function BookingPage() {
                     <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#6B5B57">
                       <path d="M18.71 19.58c-.83.86-1.73.73-2.6.32-1.24-.53-2.34-.55-3.63 0-1.62.7-2.48.5-3.44-.32C4.75 14.46 5.47 6.05 10.9 5.72c1.52.08 2.57.84 3.46.9 1.33-.27 2.6-1.06 4.02-.96 1.7.14 2.98.82 3.83 2.03-3.52 2.12-2.69 6.76.54 8.06-.65 1.7-1.48 3.38-2.86 4.63l-.18.2zM13.44 5.86c-.17-2.52 1.86-4.6 4.2-4.8.33 2.92-2.63 5.09-4.2 4.8z"/>
                     </svg>
-                  </motion.div>
+                  </motion.button>
                 </motion.div>
 
-                <motion.div
-                  variants={itemVariants}
-                  className="flex items-start gap-[10px] w-full max-w-[384px] min-h-[66px] rounded-[12px] border border-[#E8CFC1] bg-white p-[10px]"
-                  whileHover={{ borderColor: '#781E36' }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border border-[#6B5B57] mt-0.5 cursor-pointer">
-                    <div className="h-3 w-3 rounded-[2px] bg-transparent" />
-                  </div>
-                  <p className="text-[#6B5B57] text-xs leading-[18px]">
-                    {t('agreeText')}
+                {!session.isFree && (
+                  <motion.div
+                    variants={itemVariants}
+                    className="flex items-start gap-[10px] w-full max-w-[384px] min-h-[66px] rounded-[12px] border border-[#E8CFC1] bg-white p-[10px]"
+                    whileHover={{ borderColor: '#781E36' }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={agree}
+                      onClick={() => setAgree(!agree)}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border transition-colors mt-0.5 ${agree ? 'border-[#781E36] bg-[#781E36]' : 'border-[#6B5B57] bg-transparent'}`}
+                    >
+                      {agree && <span className="text-white text-xs leading-none">&#10003;</span>}
+                    </button>
+                    <p className="text-[#6B5B57] text-xs leading-[18px]">
+                      {t('agreePrefix')}{' '}
+                      <Link href="/terms-and-conditions" className="font-semibold text-[#781E36] underline hover:text-[#B83A4A] transition-colors">
+                        {t('agreeTerms')}
+                      </Link>{' '}
+                      {t('agreeAnd')}{' '}
+                      <Link href="/privacy-policy" className="font-semibold text-[#781E36] underline hover:text-[#B83A4A] transition-colors">
+                        {t('agreePrivacy')}
+                      </Link>
+                    </p>
+                  </motion.div>
+                )}
+
+                {session.bookingNotice && (
+                  <p className="text-[#B83A4A] text-xs leading-[18px]">
+                    {session.bookingNotice}
                   </p>
-                </motion.div>
+                )}
+
+                {errorMessage && (
+                  <div className="w-full rounded-[10px] border border-[#B83A4A] bg-[#B83A4A]/5 px-4 py-3">
+                    <p className="text-sm font-medium text-[#B83A4A]">{errorMessage}</p>
+                  </div>
+                )}
 
                 <motion.div variants={itemVariants} className="flex flex-col gap-[10px] w-full mt-2">
                   <motion.div
@@ -303,12 +504,14 @@ export default function BookingPage() {
                     whileTap={{ scale: 0.97 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Link
-                      href="/consultation/confirmation"
-                      className="block w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors"
+                    <button
+                      type="button"
+                      disabled={submitting}
+                      onClick={handleSubmit}
+                      className="w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                      {t('confirmBooking')}
-                    </Link>
+                      {submitting ? 'Booking...' : t('confirmBooking')}
+                    </button>
                   </motion.div>
                   <motion.div
                     whileHover={{ scale: 1.03 }}

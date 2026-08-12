@@ -1,12 +1,14 @@
 'use client';
-import React, { useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { ArrowRight, Search, ChevronDown, User, MapPin, Calendar, Clock, Building2, ChevronLeft, BadgeCheck, Wallet, Globe } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getPublishedConsultations, type PublicConsultation } from '@/lib/api/consultations';
 
 const containerVariants = {
   hidden: {},
@@ -28,67 +30,143 @@ type Filter = { name: string; label: string; isDropdown: boolean; options: strin
 type WhyItem = { title: string; subtitle: string };
 type FaqItem = { question: string; answer: string };
 
+const FALLBACK_IMAGE =
+  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop';
+
 export default function ConsultationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-[#FAEDE6] min-h-screen flex items-center justify-center">
+          <p className="text-base font-normal text-[#6B5B57]">Loading...</p>
+        </div>
+      }
+    >
+      <ConsultationPageInner />
+    </Suspense>
+  );
+}
+
+function ConsultationPageInner() {
   const t = useTranslations('consultation');
   const tNav = useTranslations('nav');
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+
+  const [sessions, setSessions] = useState<PublicConsultation[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [searchText, setSearchText] = useState(searchParams.get('search') ?? '');
   const [activeTab, setActiveTab] = useState<'all' | 'free' | 'paid'>('all');
+  const [filters, setFilters] = useState<{ marital: string; language: string; date: string }>({
+    marital: '',
+    language: '',
+    date: '',
+  });
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const perPage = 6;
 
   const sessionTabs = [
-    { key: 'all', label: t('allSessions') },
-    { key: 'free', label: t('freeSessions') },
-    { key: 'paid', label: t('paidSessions') },
-  ] as const;
+    { key: 'all' as const, label: t('allSessions') },
+    { key: 'free' as const, label: t('freeSessions') },
+    { key: 'paid' as const, label: t('paidSessions') },
+  ];
 
-  const sessionCards = Array.from({ length: 6 }, (_, i) => ({
-    id: i + 1,
-    image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop',
-    title: t('sessionCards.title'),
-    description: t('sessionCards.description'),
-    doctor: t('sessionCards.doctor'),
-    designation: t('sessionCards.designation'),
-    location: t('sessionCards.location'),
-    date: t('sessionCards.date'),
-    time: t('sessionCards.time'),
-    price: t('sessionCards.price'),
-    duration: t('sessionCards.duration'),
-  }));
-
-  const toggleDropdown = (name: string) => {
-    setOpenDropdown(openDropdown === name ? null : name);
-  };
-
-  const filters: Filter[] = [
-    {
-      name: 'free',
-      label: t('free'),
-      isDropdown: false,
-      options: [],
-    },
+  const filterDefs: Filter[] = [
     {
       name: 'marital',
-      label: t('marital'),
+      label: filters.marital || t('marital'),
       isDropdown: true,
       options: t.raw('maritalOptions') as string[],
     },
     {
       name: 'language',
-      label: t('language'),
+      label: filters.language || t('language'),
       isDropdown: true,
       options: t.raw('languageOptions') as string[],
     },
     {
       name: 'date',
-      label: t('date'),
+      label: filters.date || t('date'),
       isDropdown: true,
       options: t.raw('dateOptions') as string[],
     },
   ];
 
+  function mapMarital(label: string): string {
+    const mapping: Record<string, string> = {
+      [t.raw('maritalOptions')[0]]: 'premarital',
+      [t.raw('maritalOptions')[1]]: 'marital',
+      [t.raw('maritalOptions')[2]]: 'postMarital',
+    };
+    return mapping[label] ?? label;
+  }
+
+  function mapLanguage(label: string): string {
+    const mapping: Record<string, string> = {
+      [t.raw('languageOptions')[0]]: 'ar',
+      [t.raw('languageOptions')[1]]: 'en',
+      [t.raw('languageOptions')[2]]: 'both',
+    };
+    return mapping[label] ?? label;
+  }
+
+  function mapDate(label: string): string {
+    const mapping: Record<string, string> = {
+      [t.raw('dateOptions')[0]]: 'week',
+      [t.raw('dateOptions')[1]]: 'month',
+      [t.raw('dateOptions')[2]]: 'year',
+    };
+    return mapping[label] ?? label;
+  }
+
+  function getSelectedValue(name: 'marital' | 'language' | 'date'): string {
+    return filters[name];
+  }
+
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      const params: Record<string, string> = {};
+      if (searchText.trim()) params.search = searchText.trim();
+      if (filters.marital) params.marital_stage = mapMarital(filters.marital);
+      if (filters.language) params.language = mapLanguage(filters.language);
+      if (filters.date) params.date = mapDate(filters.date);
+      if (activeTab === 'free') params.free = 'true';
+      if (activeTab === 'paid') params.free = 'false';
+      const list = await getPublishedConsultations(params);
+      if (cancelled) return;
+      setSessions(list);
+      setLoaded(true);
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText, filters, activeTab, reloadKey]);
+
+  const toggleDropdown = (name: string) => {
+    setOpenDropdown(openDropdown === name ? null : name);
+  };
+
+  function handleResetFilters() {
+    setSearchText('');
+    setFilters({ marital: '', language: '', date: '' });
+    setActiveTab('all');
+    setOpenDropdown(null);
+    setCurrentPage(1);
+    setReloadKey((k) => k + 1);
+  }
+
+  const totalPages = Math.max(1, Math.ceil(sessions.length / perPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const paged = sessions.slice((safePage - 1) * perPage, safePage * perPage);
+
   const whyItems = t.raw('whyItems') as WhyItem[];
   const whyIcons = [User, Wallet, Globe, BadgeCheck];
-
   const faqs = t.raw('faqs') as FaqItem[];
 
   return (
@@ -107,18 +185,12 @@ export default function ConsultationPage() {
           <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-12">
             <div className="flex flex-col md:flex-row items-start gap-10">
               <div className="flex flex-col gap-8 max-w-[672px] w-full">
-                <h1
-                  className="font-bold text-[#781E36] max-w-[480px] text-3xl sm:text-4xl lg:text-[48px] leading-tight lg:leading-[75px]"
-                >
+                <h1 className="font-bold text-[#781E36] max-w-[480px] text-3xl sm:text-4xl lg:text-[48px] leading-tight lg:leading-[75px]">
                   {t('title')}
                 </h1>
-
-                <p
-                  className="font-normal text-[#6B5B57] max-w-[640px] text-base md:text-lg lg:text-[22px] leading-relaxed lg:leading-[32px]"
-                >
+                <p className="font-normal text-[#6B5B57] max-w-[640px] text-base md:text-lg lg:text-[22px] leading-relaxed lg:leading-[32px]">
                   {t('description')}
                 </p>
-
                 <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
                   <Link
                     href="#sessions"
@@ -139,7 +211,7 @@ export default function ConsultationPage() {
               <div className="w-full max-w-[640px]">
                 <div className="relative w-full h-[280px] sm:h-[420px] lg:h-[600px] rounded-[20px] overflow-hidden">
                   <Image
-                    src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1280&auto=format&fit=crop"
+                    src={FALLBACK_IMAGE}
                     alt={t('title')}
                     fill
                     className="object-cover"
@@ -153,6 +225,7 @@ export default function ConsultationPage() {
         </section>
       </Reveal>
 
+      <div id="sessions" />
       <Reveal delay={0.2} direction="up">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 pb-12">
           <div className="w-full rounded-[12px] border border-[#E8CFC1] bg-white p-[10px] flex flex-col gap-[10px]">
@@ -160,60 +233,75 @@ export default function ConsultationPage() {
               <Search className="h-5 w-5 text-[#989898] shrink-0" />
               <input
                 type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 placeholder={t('searchPlaceholder')}
                 className="w-full h-full bg-transparent text-sm font-normal text-gray-700 outline-none placeholder:text-[#989898]"
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 w-full">
-              {filters.map((filter) => (
-                <div key={filter.name} className="relative flex-1 min-w-[150px] sm:flex-none sm:w-[170px]">
-                  <button
-                    type="button"
-                    onClick={() => filter.isDropdown && toggleDropdown(filter.name)}
-                    className={`flex items-center justify-between w-full sm:w-[170px] h-[48px] rounded-[10px] border px-[10px] cursor-pointer transition-colors ${
-                      openDropdown === filter.name
-                        ? 'border-[#781E36]'
-                        : 'border-[#E8CFC1] hover:border-[#781E36]'
-                    } bg-white`}
-                  >
-                    <span
-                      className={`text-sm ${filter.isDropdown ? 'font-medium text-[#6B5B57]' : 'font-semibold text-[#781E36]'}`}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
+              {filterDefs.map((filter) => {
+                const selected = getSelectedValue(filter.name as 'marital' | 'language' | 'date');
+                const active = Boolean(selected);
+                return (
+                  <div key={filter.name} className="relative w-full">
+                    <button
+                      type="button"
+                      onClick={() => toggleDropdown(filter.name)}
+                      className={`flex items-center justify-between w-full h-[48px] rounded-[10px] border px-[10px] cursor-pointer transition-colors bg-white ${
+                        active || openDropdown === filter.name
+                          ? 'border-[#781E36]'
+                          : 'border-[#E8CFC1] hover:border-[#781E36]'
+                      }`}
                     >
-                      {filter.label}
-                    </span>
-                    {filter.isDropdown && (
-                      <ChevronDown
-                        className={`h-4 w-4 text-[#989898] transition-transform duration-200 ${
-                          openDropdown === filter.name ? 'rotate-180' : ''
-                        }`}
-                      />
+                      <span className={`text-sm truncate ${active ? 'font-semibold text-[#781E36]' : 'font-medium text-[#6B5B57]'}`}>
+                        {selected || filter.label}
+                      </span>
+                      {filter.isDropdown && (
+                        <ChevronDown
+                          className={`h-4 w-4 shrink-0 text-[#989898] transition-transform duration-200 ${openDropdown === filter.name ? 'rotate-180' : ''}`}
+                        />
+                      )}
+                    </button>
+                    {filter.isDropdown && openDropdown === filter.name && (
+                      <div className="absolute top-full left-0 mt-1 w-full rounded-[10px] border border-[#E8CFC1] bg-white shadow-lg z-20 overflow-hidden">
+                        {filter.options.map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => {
+                              setFilters((f) => ({ ...f, [filter.name]: opt }));
+                              setOpenDropdown(null);
+                            }}
+                            className="w-full px-[10px] py-2 text-left text-sm font-medium text-[#6B5B57] hover:bg-[#FAEDE6] hover:text-[#781E36] transition-colors"
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     )}
-                  </button>
-                  {filter.isDropdown && openDropdown === filter.name && (
-                    <div className="absolute top-full left-0 mt-1 w-full rounded-[10px] border border-[#E8CFC1] bg-white shadow-lg z-20 overflow-hidden">
-                      {filter.options.map((opt) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => {
-                            filter.label = opt;
-                            setOpenDropdown(null);
-                          }}
-                          className="w-full px-[10px] py-2 text-left text-sm font-medium text-[#6B5B57] hover:bg-[#FAEDE6] hover:text-[#781E36] transition-colors"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
 
-            <button className="w-full h-[52px] rounded-[12px] bg-[#781E36] px-6 py-3 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors">
-              {t('search')}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-[10px] w-full">
+              <button
+                type="button"
+                onClick={() => { setCurrentPage(1); setReloadKey((k) => k + 1); }}
+                className="w-full h-[52px] rounded-[12px] bg-[#781E36] px-6 py-3 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors sm:flex-1"
+              >
+                {t('search')}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="w-full sm:w-auto h-[52px] rounded-[12px] bg-[#FAEDE6] px-6 py-3 text-sm font-bold text-[#781E36] border border-[#E8CFC1] hover:bg-[#F3D9CE] transition-colors"
+              >
+                {t('reset')}
+              </button>
+            </div>
           </div>
         </div>
       </Reveal>
@@ -226,7 +314,7 @@ export default function ConsultationPage() {
                 key={tab.key}
                 type="button"
                 onClick={() => setActiveTab(tab.key)}
-                className={`h-[48px] flex-1 sm:flex-none sm:w-[158px] rounded-[12px] px-4 sm:px-8 py-3 text-sm font-bold transition-all duration-300 ${
+                className={`h-[48px] flex-1 rounded-[12px] px-4 inline-flex items-center justify-center whitespace-nowrap overflow-hidden text-sm font-bold transition-all duration-300 ${
                   activeTab === tab.key
                     ? 'bg-[#781E36] text-white shadow-sm'
                     : 'bg-transparent text-[#6B5B57] hover:text-[#781E36]'
@@ -239,127 +327,152 @@ export default function ConsultationPage() {
         </div>
       </Reveal>
 
+      <div id="learn-more" />
       <Reveal delay={0.3} direction="up">
         <div className="max-w-[1280px] mx-auto px-4 md:px-8 pb-12">
-          <motion.div
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: false, margin: '-50px' }}
-          >
-            {sessionCards.map((card) => (
-              <motion.div
-                key={card.id}
-                variants={itemVariants}
-                className="flex flex-col w-full max-w-[400px] mx-auto rounded-[24px] border border-[#E8CFC1] bg-white overflow-hidden"
-                style={{
-                  boxShadow: '0px 4px 6px -4px rgba(0,0,0,0.1), 0px 10px 15px -3px rgba(0,0,0,0.1)',
-                }}
-              >
-                <div className="relative w-full h-[224px] overflow-hidden">
-                  <Image
-                    src={card.image}
-                    alt={card.title}
-                    fill
-                    className="object-cover"
-                    sizes="400px"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-4 p-5">
-                  <div className="flex flex-col justify-between min-h-[110px]">
-                    <h3 className="font-bold text-[#781E36] text-lg leading-[27px]">
-                      {card.title}
-                    </h3>
-                    <p className="text-sm font-normal text-[#6B5B57] leading-[20px]">
-                      {card.description}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[16px] border border-[#E8CFC1] bg-[#FAEDE6] p-5 flex flex-col gap-4">
-                    <div className="flex items-center gap-[13px]">
-                      <User className="h-5 w-5 text-[#781E36] shrink-0" />
-                      <span className="font-medium text-[#781E36] text-sm leading-[17.5px]">
-                        {card.doctor}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-[13px]">
-                      <Building2 className="h-5 w-5 text-[#781E36] shrink-0" />
-                      <span className="font-medium text-[#781E36] text-sm leading-[17.5px]">
-                        {card.designation}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-[13px]">
-                      <MapPin className="h-5 w-5 text-[#6B5B57] shrink-0" />
-                      <span className="font-medium text-[#6B5B57] text-sm leading-[17.5px]">
-                        {card.location}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="w-full border-t border-[#E8CFC1]" />
-
-                  <div className="flex flex-wrap items-center gap-[8px]">
-                    <Calendar className="h-5 w-5 text-[#B83A4A] shrink-0" />
-                    <span className="text-sm font-medium text-[#6B5B57]">{card.date}</span>
-                    <Clock className="h-5 w-5 text-[#B83A4A] shrink-0 ml-4" />
-                    <span className="text-sm font-medium text-[#6B5B57]">{card.time}</span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col gap-[6px]">
-                      <span className="font-normal text-[#989898] text-xl leading-[32px]">
-                        {t('sessionCards.priceLabel')}
-                      </span>
-                      <span className="font-bold text-[#781E36] text-lg leading-[32px]">
-                        {card.price}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-[6px] text-end">
-                      <span className="font-normal text-[#989898] text-xl leading-[32px]">
-                        {t('sessionCards.durationLabel')}
-                      </span>
-                      <span className="font-bold text-[#781E36] text-lg leading-[32px]">
-                        {card.duration}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center gap-3">
-                    <Link href="/consultation/details" className="w-full sm:w-[170px] h-[60px] flex items-center justify-center rounded-[50px] border-2 border-[#781E36] bg-transparent px-[10px] text-sm font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors">
-                      {t('sessionCards.viewDetails')}
-                    </Link>
-                    <Link href="/consultation/details" className="w-full sm:w-[170px] h-[60px] flex items-center justify-center rounded-[50px] bg-[#781E36] px-[10px] text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors">
-                      {t('sessionCards.bookNow')}
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-
-          <div className="flex flex-wrap items-center justify-center gap-[30px] mx-auto mt-8">
-            <button type="button" className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
-              <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
-            </button>
-            {[1, 2, 3, 4, 5].map((page) => (
+          {!loaded ? (
+            <p className="text-center text-base font-normal text-[#6B5B57] py-10">Loading...</p>
+          ) : paged.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 py-16 text-center">
+              <p className="text-base font-normal text-[#6B5B57]">No sessions found.</p>
               <button
-                key={page}
                 type="button"
-                className={`w-[35px] h-[42px] px-[10px] text-sm font-bold transition-colors ${
-                  page === 1
-                    ? 'rounded-[4px] bg-[#781E36] text-white'
-                    : 'rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36]'
-                }`}
+                onClick={() => {
+                  setSearchText('');
+                  setFilters({ marital: '', language: '', date: '' });
+                  setActiveTab('all');
+                }}
+                className="h-[52px] rounded-[12px] bg-[#781E36] px-6 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors"
               >
-                {page}
+                Clear filters
               </button>
-            ))}
-            <button type="button" className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
-              <ChevronLeft className="h-4 w-4 rotate-180 rtl:rotate-0" />
-            </button>
-          </div>
+            </div>
+          ) : (
+            <motion.div
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+              variants={containerVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: false, margin: '-50px' }}
+            >
+              {paged.map((card) => (
+                <motion.div
+                  key={card.id}
+                  variants={itemVariants}
+                  className="flex flex-col w-full max-w-[400px] mx-auto rounded-[24px] border border-[#E8CFC1] bg-white overflow-hidden"
+                  style={{
+                    boxShadow: '0px 4px 6px -4px rgba(0,0,0,0.1), 0px 10px 15px -3px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <div className="relative w-full h-[224px] overflow-hidden bg-[#FAEDE6]">
+                    <Image
+                      src={card.coverImage || FALLBACK_IMAGE}
+                      alt={card.sessionTitle}
+                      fill
+                      className="object-cover"
+                      sizes="400px"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-4 p-5">
+                    <div className="flex flex-col justify-between min-h-[110px]">
+                      <h3 className="font-bold text-[#781E36] text-lg leading-[27px]">
+                        {card.sessionTitle}
+                      </h3>
+                      {card.category && (
+                        <p className="text-sm font-normal text-[#6B5B57] leading-[20px]">
+                          {card.category}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="rounded-[16px] border border-[#E8CFC1] bg-[#FAEDE6] p-5 flex flex-col gap-4">
+                      <div className="flex items-center gap-[13px]">
+                        <User className="h-5 w-5 text-[#781E36] shrink-0" />
+                        <span className="font-medium text-[#781E36] text-sm leading-[17.5px]">
+                          {card.sessionType || card.maritalStage}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-[13px]">
+                        <Building2 className="h-5 w-5 text-[#781E36] shrink-0" />
+                        <span className="font-medium text-[#781E36] text-sm leading-[17.5px]">
+                          {card.emirates || card.language}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-[13px]">
+                        <MapPin className="h-5 w-5 text-[#6B5B57] shrink-0" />
+                        <span className="font-medium text-[#6B5B57] text-sm leading-[17.5px]">
+                          {card.language}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full border-t border-[#E8CFC1]" />
+
+                    <div className="flex flex-wrap items-center gap-[8px]">
+                      <Calendar className="h-5 w-5 text-[#B83A4A] shrink-0" />
+                      <span className="text-sm font-medium text-[#6B5B57]">{card.date || ''}</span>
+                      <Clock className="h-5 w-5 text-[#B83A4A] shrink-0 ml-4" />
+                      <span className="text-sm font-medium text-[#6B5B57]">{card.startTime}{card.endTime ? ` - ${card.endTime}` : ''}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-[6px]">
+                        <span className="font-normal text-[#989898] text-xl leading-[32px]">
+                          {t('sessionCards.priceLabel')}
+                        </span>
+                        <span className="font-bold text-[#781E36] text-lg leading-[32px]">
+                          {card.isFree ? 'Free' : `AED ${card.fee}`}
+                        </span>
+                      </div>
+                      <div className="flex flex-col gap-[6px] text-end">
+                        <span className="font-normal text-[#989898] text-xl leading-[32px]">
+                          {t('sessionCards.durationLabel')}
+                        </span>
+                        <span className="font-bold text-[#781E36] text-lg leading-[32px]">
+                          {card.duration}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <Link href={`/consultation/details?slug=${card.slug}`} className="w-full sm:w-[170px] h-[60px] flex items-center justify-center rounded-[50px] border-2 border-[#781E36] bg-transparent px-[10px] text-sm font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors">
+                        {t('sessionCards.viewDetails')}
+                      </Link>
+                      <Link href={`/consultation/book?slug=${card.slug}`} className="w-full sm:w-[170px] h-[60px] flex items-center justify-center rounded-[50px] bg-[#781E36] px-[10px] text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors">
+                        {t('sessionCards.bookNow')}
+                      </Link>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {loaded && sessions.length > perPage && (
+            <div className="flex flex-wrap items-center justify-center gap-[30px] mx-auto mt-8">
+              <button type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
+                <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-[35px] h-[42px] px-[10px] text-sm font-bold transition-colors ${
+                    page === currentPage
+                      ? 'rounded-[4px] bg-[#781E36] text-white'
+                      : 'rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36]'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
+                <ChevronLeft className="h-4 w-4 rotate-180 rtl:rotate-0" />
+              </button>
+            </div>
+          )}
         </div>
       </Reveal>
 
@@ -442,9 +555,7 @@ export default function ConsultationPage() {
                     {faq.question}
                   </span>
                   <ChevronDown
-                    className={`h-5 w-5 text-[#781E36] shrink-0 transition-transform duration-300 ${
-                      openFaq === i ? 'rotate-180' : ''
-                    }`}
+                    className={`h-5 w-5 text-[#781E36] shrink-0 transition-transform duration-300 ${openFaq === i ? 'rotate-180' : ''}`}
                   />
                 </div>
                 {openFaq === i && (
@@ -475,20 +586,18 @@ export default function ConsultationPage() {
                 <h2 className="max-w-[848px] text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl leading-tight pb-[24px]">
                   {t('ctaTitle')}
                 </h2>
-
                 <p className="max-w-[672px] text-base md:text-lg text-white/90 leading-relaxed pb-[40px]">
                   {t('ctaText')}
                 </p>
-
                 <div className="flex flex-col sm:flex-row items-center gap-4">
                   <Link
-                    href="#consultation"
+                    href="#sessions"
                     className="flex h-[64px] min-w-[221px] w-full sm:w-auto items-center justify-center gap-2 rounded-full bg-white px-[32px] py-[18px] font-extrabold text-lg text-[#781E36] hover:bg-[#FAEDE6] transition-colors"
                   >
                     {t('ctaBook')}
                   </Link>
                   <Link
-                    href="#organizations"
+                    href="#learn-more"
                     className="flex h-[64px] min-w-[221px] w-full sm:w-auto items-center justify-center gap-2 rounded-full border-2 border-white bg-transparent px-[32px] py-[18px] font-extrabold text-lg text-white hover:bg-white hover:text-[#781E36] transition-colors"
                   >
                     {t('ctaOrgs')}

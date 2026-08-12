@@ -5,6 +5,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   images: {
+    deviceSizes: [640, 750, 828, 1080, 1200, 1280, 1920, 2048, 3840],
+    dangerouslyAllowLocalIP: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -17,8 +19,18 @@ const nextConfig: NextConfig = {
       {
         protocol: 'http',
         hostname: '127.0.0.1',
-        port: '8000',
-        pathname: '/media/**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: '127.0.0.1',
+      },
+      {
+        protocol: 'https',
+        hostname: 'localhost',
       },
     ],
   },

@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { motion } from 'framer-motion';
@@ -8,6 +8,11 @@ import { ArrowRight } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import {
+  getEmirateBySlug,
+  type PublicEmirateDetail,
+  type PublicEmirateInitiative,
+} from '@/lib/api/emirates';
 
 const containerVariants = {
   hidden: {},
@@ -30,11 +35,6 @@ interface EmirateEntry {
   subtitle: string;
 }
 
-interface Initiative {
-  title: string;
-  description: string;
-}
-
 interface Org {
   label: string;
   subtitle: string;
@@ -50,13 +50,21 @@ const emirateImages: Record<string, string> = {
   'umm-al-quwain': 'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=1280&auto=format&fit=crop',
 };
 
-const orgIcons = ['💒', '🏗️', '👪', '🌟'];
-
-const initiativeImages = [
+const fallbackInitiativeImages = [
   'https://images.unsplash.com/photo-1531497865144-0464ef8fb9a9?q=80&w=800&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=800&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=800&auto=format&fit=crop',
 ];
+
+const orgIcons = ['💒', '🏗️', '👪', '🌟'];
+
+interface DisplayInitiative {
+  slug: string;
+  title: string;
+  description: string;
+  image: string;
+  officialWebsiteUrl: string;
+}
 
 export default function EmirateDetailPage() {
   const params = useParams();
@@ -66,10 +74,44 @@ export default function EmirateDetailPage() {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(null);
 
   const emiratesData = t.raw('emiratesData') as Record<string, EmirateEntry>;
-  const emirate = emiratesData[name] || emiratesData[Object.keys(emiratesData)[0]];
-  const emirateImage = emirateImages[name] || emirateImages['abu-dhabi'];
-  const displayName = emirate.title.split('—')[0].trim();
-  const initiatives = t.raw('initiatives') as Initiative[];
+  const fallbackEntry = emiratesData[name] || emiratesData[Object.keys(emiratesData)[0]];
+
+  const [emirate, setEmirate] = useState<PublicEmirateDetail | null>(null);
+  const [initiatives, setInitiatives] = useState<DisplayInitiative[]>(() =>
+    (t.raw('initiatives') as { title: string; description: string }[]).map((card, i) => ({
+      slug: '',
+      title: card.title,
+      description: card.description,
+      image: fallbackInitiativeImages[i % fallbackInitiativeImages.length],
+      officialWebsiteUrl: '',
+    })),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    getEmirateBySlug(name)
+      .then((detail) => {
+        if (cancelled || !detail) return;
+        setEmirate(detail);
+        setInitiatives(
+          detail.initiatives.map((init: PublicEmirateInitiative, i: number) => ({
+            slug: init.slug,
+            title: init.title,
+            description: init.subtitle || init.title,
+            image: init.coverImage || fallbackInitiativeImages[i % fallbackInitiativeImages.length],
+            officialWebsiteUrl: init.officialWebsiteUrl || '',
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [name]);
+
+  const displayName = emirate?.title || emirate?.emiratesName || fallbackEntry.title.split('—')[0].trim();
+  const emirateImage = emirate?.image || emirateImages[name] || emirateImages['abu-dhabi'];
+  const emirateSubtitle = emirate?.description || fallbackEntry.subtitle;
   const orgs = t.raw('orgs') as Org[];
 
   return (
@@ -90,10 +132,10 @@ export default function EmirateDetailPage() {
             <div className="flex flex-col md:flex-row items-start gap-10">
               <div className="flex flex-col gap-8 max-w-[672px] w-full">
                 <h1 className="font-bold text-[#781E36] text-3xl sm:text-4xl md:text-[48px] leading-snug md:leading-[67px] max-w-[640px]">
-                  {emirate.title}
+                  {displayName}
                 </h1>
                 <p className="font-normal text-[#6B5B57] text-base sm:text-lg md:text-[22px] leading-relaxed md:leading-[32px] max-w-[640px]">
-                  {emirate.subtitle}
+                  {emirateSubtitle}
                 </p>
                 <div className="flex items-center gap-4 mt-2">
                   <Link href="/initiatives" className="flex h-[56px] sm:h-[60px] w-full sm:w-[300px] items-center justify-center gap-2 rounded-[20px] bg-[#781E36] px-[10px] text-sm font-bold text-white shadow-lg hover:bg-[#B83A4A] transition-colors">
@@ -105,7 +147,7 @@ export default function EmirateDetailPage() {
 
               <div className="w-full max-w-[640px]">
                 <div className="relative w-full h-[300px] sm:h-[400px] md:h-[600px] rounded-[20px] overflow-hidden">
-                  <Image src={emirateImage} alt={displayName} fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" priority />
+                  <Image src={emirateImage} alt={displayName} fill className="object-cover" sizes="(max-width: 768px) 100vw, 640px" priority unoptimized />
                 </div>
               </div>
             </div>
@@ -136,13 +178,13 @@ export default function EmirateDetailPage() {
             >
               {initiatives.map((card, i) => (
                 <motion.div
-                  key={i}
+                  key={`${card.slug || card.title}-${i}`}
                   variants={itemVariants}
                   className="flex flex-col w-full rounded-[24px] border border-[#E8CFC1] bg-white"
                   style={{ boxShadow: '0px 4px 6px -4px #0000001A, 0px 10px 15px -3px #0000001A' }}
                 >
                   <div className="relative w-full h-[200px] sm:h-[224px] rounded-t-[24px] overflow-hidden">
-                    <Image src={initiativeImages[i]} alt={card.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" />
+                    <Image src={card.image} alt={card.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 400px" unoptimized />
                   </div>
                   <div className="flex flex-col p-5 gap-[28px]">
                     <div className="flex flex-col gap-[14px]">
@@ -174,8 +216,16 @@ export default function EmirateDetailPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <button type="button" className="flex-1 h-[48px] rounded-[12px] bg-[#781E36] text-white text-sm font-bold hover:bg-[#B83A4A] transition-colors">{t('viewDetails')}</button>
-                      <button type="button" className="flex-1 h-[48px] rounded-[12px] border border-[#E8CFC1] text-[#781E36] text-sm font-bold bg-white hover:border-[#781E36] transition-colors">{t('officialWebsite')}</button>
+                      {card.slug ? (
+                        <Link href={`/initiatives/${card.slug}`} className="flex-1 h-[48px] rounded-[12px] bg-[#781E36] text-white text-sm font-bold hover:bg-[#B83A4A] transition-colors items-center justify-center inline-flex">{t('viewDetails')}</Link>
+                      ) : (
+                        <button type="button" className="flex-1 h-[48px] rounded-[12px] bg-[#781E36] text-white text-sm font-bold hover:bg-[#B83A4A] transition-colors">{t('viewDetails')}</button>
+                      )}
+                      {card.officialWebsiteUrl ? (
+                        <a href={card.officialWebsiteUrl} target="_blank" rel="noopener noreferrer" className="flex-1 h-[48px] rounded-[12px] border border-[#E8CFC1] text-[#781E36] text-sm font-bold bg-white hover:border-[#781E36] transition-colors inline-flex items-center justify-center">{t('officialWebsite')}</a>
+                      ) : (
+                        <button type="button" className="flex-1 h-[48px] rounded-[12px] border border-[#E8CFC1] text-[#781E36] text-sm font-bold bg-white hover:border-[#781E36] transition-colors">{t('officialWebsite')}</button>
+                      )}
                     </div>
                   </div>
                 </motion.div>

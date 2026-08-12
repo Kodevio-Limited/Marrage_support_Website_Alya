@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Link } from '@/i18n/navigation';
 import { motion } from 'framer-motion';
@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowRight } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getPublishedEmirates, type PublicEmirate } from '@/lib/api/emirates';
 
 const containerVariants = {
   hidden: {},
@@ -37,15 +38,65 @@ interface Org {
 
 const orgIcons = ['💒', '🏗️', '👪', '🌟'];
 
-const emirateMeta: { slug: string; image: string }[] = [
-  { slug: 'abu-dhabi', image: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop' },
-  { slug: 'dubai', image: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800&auto=format&fit=crop' },
-  { slug: 'sharjah', image: '/Static/Home/Hero/Emirati couple looking at UAE skyline.png' },
-  { slug: 'ajman', image: '/Static/Home/Hero/Emirati couple looking at UAE skyline.png' },
-  { slug: 'ras-al-khaimah', image: 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=800&auto=format&fit=crop' },
-  { slug: 'fujairah', image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=800&auto=format&fit=crop' },
-  { slug: 'umm-al-quwain', image: 'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=800&auto=format&fit=crop' },
+const fallbackImages: string[] = [
+  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800&auto=format&fit=crop',
+  '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
+  '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
+  'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=800&auto=format&fit=crop',
+  'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=800&auto=format&fit=crop',
 ];
+
+interface DisplayItem {
+  slug: string;
+  image: string;
+  name: string;
+  description: string;
+  count: string;
+}
+
+function useEmiratesData(fallback: EmirateItem[]): DisplayItem[] {
+  const fallbackRef = useRef(fallback);
+
+  const [items, setItems] = useState<DisplayItem[]>(() =>
+    fallback.map((item, i) => ({
+      slug: `emirate-${i}`,
+      image: fallbackImages[i % fallbackImages.length],
+      name: item.name,
+      description: item.description,
+      count: item.count,
+    })),
+  );
+
+  useEffect(() => {
+    fallbackRef.current = fallback;
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const fb = fallbackRef.current;
+    getPublishedEmirates()
+      .then((list: PublicEmirate[]) => {
+        if (cancelled || !list.length) return;
+        setItems(
+          list.map((emi, i) => ({
+            slug: emi.slug,
+            image: emi.image || fallbackImages[i % fallbackImages.length],
+            name: emi.title || emi.emiratesName,
+            description: emi.description || fb[i % fb.length]?.description || '',
+            count: emi.centerCount || fb[i % fb.length]?.count || '',
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return items;
+}
 
 export default function EmiratesPage() {
   const t = useTranslations('emiratesPage');
@@ -54,7 +105,7 @@ export default function EmiratesPage() {
 
   const list = t.raw('list') as EmirateItem[];
   const orgs = t.raw('orgs') as Org[];
-  const items = list.map((item, i) => ({ ...item, ...emirateMeta[i] }));
+  const items = useEmiratesData(list);
 
   return (
     <div className="bg-[#FAEDE6]">
@@ -117,8 +168,8 @@ export default function EmiratesPage() {
               whileInView="visible"
               viewport={{ once: false, margin: '-50px' }}
             >
-              {items.map((item, i) => (
-                <motion.div key={i} variants={itemVariants} className="flex flex-col mx-auto w-full max-w-[400px] min-h-[370px] rounded-[24px] border border-[#E8CFC1] bg-white overflow-hidden">
+              {items.map((item) => (
+                <motion.div key={item.slug} variants={itemVariants} className="flex flex-col mx-auto w-full max-w-[400px] min-h-[370px] rounded-[24px] border border-[#E8CFC1] bg-white overflow-hidden">
                   <div className="relative w-full h-[160px] shrink-0">
                     <Image src={item.image} alt={item.name} fill className="object-cover" sizes="(max-width: 640px) 100vw, 400px" unoptimized />
                   </div>

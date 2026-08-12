@@ -47,6 +47,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       dir={dir}
+      suppressHydrationWarning
       className={`${inter.variable} ${arabic.variable} h-full antialiased`}
     >
       <head>
