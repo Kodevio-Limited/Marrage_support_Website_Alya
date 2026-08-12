@@ -8,6 +8,7 @@ import { ArrowRight } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
 import { getPublishedEmirates, type PublicEmirate } from '@/lib/api/emirates';
+import { EMIRATES_IMAGES, EMIRATES_HERO_IMAGE } from '@/lib/image-pools';
 
 const containerVariants = {
   hidden: {},
@@ -38,15 +39,7 @@ interface Org {
 
 const orgIcons = ['💒', '🏗️', '👪', '🌟'];
 
-const fallbackImages: string[] = [
-  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800&auto=format&fit=crop',
-  '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
-  '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
-  'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=800&auto=format&fit=crop',
-  'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=800&auto=format&fit=crop',
-];
+const fallbackImages = EMIRATES_IMAGES;
 
 interface DisplayItem {
   slug: string;
@@ -134,7 +127,7 @@ export default function EmiratesPage() {
               <div className="w-full max-w-[640px]">
                 <div className="relative w-full h-[300px] sm:h-[400px] md:h-[600px] rounded-[20px] overflow-hidden">
                   <Image
-                    src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1280&auto=format&fit=crop"
+                    src={EMIRATES_HERO_IMAGE}
                     alt={t('title')}
                     fill
                     className="object-cover"
@@ -142,6 +135,7 @@ export default function EmiratesPage() {
                     priority
                     unoptimized
                   />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-[#781E36]/15 via-transparent to-transparent" />
                 </div>
               </div>
             </div>

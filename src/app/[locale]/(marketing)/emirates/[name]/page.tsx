@@ -13,6 +13,7 @@ import {
   type PublicEmirateDetail,
   type PublicEmirateInitiative,
 } from '@/lib/api/emirates';
+import { EMIRATES_IMAGES } from '@/lib/image-pools';
 
 const containerVariants = {
   hidden: {},
@@ -41,13 +42,13 @@ interface Org {
 }
 
 const emirateImages: Record<string, string> = {
-  'abu-dhabi': 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=1280&auto=format&fit=crop',
-  'dubai': 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=1280&auto=format&fit=crop',
-  'sharjah': '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
-  'ajman': '/Static/Home/Hero/Emirati couple looking at UAE skyline.png',
-  'ras-al-khaimah': 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=1280&auto=format&fit=crop',
-  'fujairah': 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1280&auto=format&fit=crop',
-  'umm-al-quwain': 'https://images.unsplash.com/photo-1449844908441-8829872d2607?q=80&w=1280&auto=format&fit=crop',
+  'abu-dhabi': EMIRATES_IMAGES[0],
+  'dubai': EMIRATES_IMAGES[1],
+  'sharjah': EMIRATES_IMAGES[2],
+  'ajman': EMIRATES_IMAGES[3],
+  'umm-al-quwain': EMIRATES_IMAGES[4],
+  'ras-al-khaimah': EMIRATES_IMAGES[5],
+  'fujairah': EMIRATES_IMAGES[6],
 };
 
 const fallbackInitiativeImages = [

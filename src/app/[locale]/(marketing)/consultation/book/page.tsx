@@ -4,14 +4,26 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { User, FileText, Clock, Globe, Calendar, MapPin, ChevronDown, CreditCard } from 'lucide-react';
+import {
+  PaymentElement,
+  Elements,
+  useElements,
+  useStripe,
+} from '@stripe/react-stripe-js';
+import { loadStripe, type StripeElementsOptions } from '@stripe/stripe-js';
+import { User, FileText, Clock, Globe, Calendar, MapPin, ChevronDown } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
+import { getConsultationBySlug, createBooking, type PublicConsultationDetail } from '@/lib/api/consultations';
 import {
-  getConsultationBySlug,
-  createBooking,
-  type PublicConsultationDetail,
-} from '@/lib/api/consultations';
+  createPaymentIntent,
+  confirmBookingPayment,
+  type PaymentIntentResult,
+} from '@/lib/api/payments';
+
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
+);
 
 const containerVariants = {
   hidden: {},
@@ -30,7 +42,6 @@ const itemVariants = {
 };
 
 type SummaryItem = { label: string; value: string };
-type PaymentMethod = 'card' | 'apple_pay';
 
 export default function BookingPage() {
   return (
@@ -43,6 +54,91 @@ export default function BookingPage() {
     >
       <BookingPageInner />
     </Suspense>
+  );
+}
+
+function StripeCheckout({
+  onSuccess,
+  onBack,
+}: {
+  onSuccess: (paymentIntentId: string) => void;
+  onBack: () => void;
+}) {
+  const t = useTranslations('booking');
+  const stripe = useStripe();
+  const elements = useElements();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  async function handlePay() {
+    if (!stripe || !elements) return;
+    setErrorMessage(null);
+    setProcessing(true);
+    try {
+      const result = (await stripe.confirmPayment({
+        elements,
+        confirmParams: { return_url: window.location.href },
+      })) as { error?: { message?: string } | null; paymentIntent?: { id: string; status: string } | null };
+      if (result.error) {
+        setErrorMessage(result.error.message ?? 'Payment could not be completed.');
+      } else if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+        onSuccess(result.paymentIntent.id);
+      }
+    } catch {
+      setErrorMessage('Payment could not be completed. Please try again.');
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-[18px] w-full max-w-[384px] mt-2">
+      <div className="flex items-center justify-between w-full">
+        <span className="text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
+          {t('paymentMethod')}
+        </span>
+      </div>
+
+      <div className="rounded-[12px] border border-[#E8CFC1] bg-white p-4">
+        <PaymentElement options={{ layout: 'tabs' }} />
+      </div>
+      <p className="text-xs leading-[18px] text-[#989898]">{t('securePayment')}</p>
+
+      {errorMessage && (
+        <div className="w-full rounded-[10px] border border-[#B83A4A] bg-[#B83A4A]/5 px-4 py-3">
+          <p className="text-sm font-medium text-[#B83A4A]">{errorMessage}</p>
+        </div>
+      )}
+
+      <motion.div
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+      >
+        <button
+          type="button"
+          disabled={!stripe || !elements || processing}
+          onClick={handlePay}
+          className="w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {processing ? t('processingPayment') : t('payNow')}
+        </button>
+      </motion.div>
+      <motion.div
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.97 }}
+        transition={{ duration: 0.2 }}
+      >
+        <button
+          type="button"
+          disabled={processing}
+          onClick={onBack}
+          className="w-full h-[60px] rounded-[10px] border border-[#E8CFC1] bg-white px-[10px] text-base font-semibold text-[#6B5B57] hover:border-[#781E36] transition-colors disabled:opacity-60"
+        >
+          {t('backToSession')}
+        </button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -66,8 +162,9 @@ function BookingPageInner() {
     country: '',
     preferredLanguage: '',
   });
-  const [payment, setPayment] = useState<PaymentMethod>('card');
   const [agree, setAgree] = useState(false);
+
+  const [paymentSetup, setPaymentSetup] = useState<PaymentIntentResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,17 +244,19 @@ function BookingPageInner() {
 
   const summaryIcons = [User, FileText, Clock, Globe, Calendar, MapPin];
 
-  async function handleSubmit() {
+  function validateForm(): string | null {
+    if (!form.fullName.trim() || !form.phone.trim() || !form.email.trim() || !form.country) {
+      return 'Please fill in all required fields.';
+    }
+    if (!session?.isFree && !agree) {
+      return 'Please agree to the terms and conditions.';
+    }
+    return null;
+  }
+
+  async function handleFreeSubmit() {
     setErrorMessage(null);
     if (!session) return;
-    if (!form.fullName.trim() || !form.phone.trim() || !form.email.trim() || !form.country) {
-      setErrorMessage('Please fill in all required fields.');
-      return;
-    }
-    if (!session.isFree && !agree) {
-      setErrorMessage('Please agree to the terms and conditions.');
-      return;
-    }
     setSubmitting(true);
     try {
       const booking = await createBooking({
@@ -166,7 +265,7 @@ function BookingPageInner() {
         contactNumber: form.phone.trim(),
         email: form.email.trim(),
         userType: 'individual',
-        paymentMethod: session.isFree ? 'free' : payment,
+        paymentMethod: 'card',
       });
       router.push(`/consultation/confirmation?ref=${booking.reference}`);
     } catch (e) {
@@ -178,6 +277,52 @@ function BookingPageInner() {
       setSubmitting(false);
     }
   }
+
+  async function handleStartPayment() {
+    setErrorMessage(null);
+    if (!session) return;
+    const validationError = validateForm();
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const result = await createPaymentIntent({
+        consultationId: session.id,
+        fullName: form.fullName.trim(),
+        contactNumber: form.phone.trim(),
+        email: form.email.trim(),
+        userType: 'individual',
+      });
+      setPaymentSetup(result);
+    } catch (e) {
+      const err = e as Error & { details?: Record<string, string[]> };
+      const firstDetail = err.details
+        ? Object.values(err.details)[0]?.[0]
+        : undefined;
+      setErrorMessage(firstDetail || err.message || 'Could not initialize payment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handlePaymentSuccess(paymentIntentId: string) {
+    try {
+      const booking = await confirmBookingPayment(paymentIntentId);
+      router.push(`/consultation/confirmation?ref=${booking.reference}`);
+    } catch (e) {
+      const err = e as Error & { details?: Record<string, string[]> };
+      const firstDetail = err.details
+        ? Object.values(err.details)[0]?.[0]
+        : undefined;
+      setErrorMessage(firstDetail || err.message || 'Payment received, but confirming your booking failed. Please contact support.');
+    }
+  }
+
+  const elementsOptions: StripeElementsOptions = paymentSetup
+    ? { clientSecret: paymentSetup.clientSecret }
+    : {};
 
   return (
     <div className="bg-[#FAEDE6] min-h-screen">
@@ -413,51 +558,7 @@ function BookingPageInner() {
                   </>
                 )}
 
-                <motion.div variants={itemVariants} className="flex flex-col gap-[18px] w-full max-w-[384px] mt-2">
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-lg md:text-2xl font-bold leading-[30px] tracking-[0.1px] text-[#781E36]">
-                      {t('paymentMethod')}
-                    </span>
-                  </div>
-
-                  <motion.button
-                    type="button"
-                    onClick={() => setPayment('card')}
-                    className="flex items-center gap-[8px] w-full h-[56px] rounded-[24px] border border-[#E8CFC1] bg-white px-4 cursor-pointer"
-                    whileHover={{ scale: 1.02, borderColor: '#781E36' }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className={`flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] transition-colors ${payment === 'card' ? 'border-[#781E36]' : 'border-[#E8CFC1]'}`}>
-                      <div className={`h-[20px] w-[20px] rounded-full transition-colors ${payment === 'card' ? 'bg-[#781E36]' : 'bg-transparent'}`} />
-                    </div>
-                    <span className="flex-1 text-base font-normal text-[#6B5B57]">
-                      {t('creditDebit')}
-                    </span>
-                    <CreditCard className="h-6 w-6 text-[#6B5B57]" />
-                  </motion.button>
-
-                  <motion.button
-                    type="button"
-                    onClick={() => setPayment('apple_pay')}
-                    className="flex items-center gap-[8px] w-full h-[56px] rounded-[24px] border border-[#E8CFC1] bg-white px-4 cursor-pointer"
-                    whileHover={{ scale: 1.02, borderColor: '#781E36' }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <div className={`flex h-[36px] w-[37px] shrink-0 items-center justify-center rounded-[30px] border-[3px] transition-colors ${payment === 'apple_pay' ? 'border-[#781E36]' : 'border-[#E8CFC1]'}`}>
-                      <div className={`h-[20px] w-[20px] rounded-full transition-colors ${payment === 'apple_pay' ? 'bg-[#781E36]' : 'bg-transparent'}`} />
-                    </div>
-                    <span className="flex-1 text-base font-normal text-[#6B5B57]">
-                      {t('applePay')}
-                    </span>
-                    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#6B5B57">
-                      <path d="M18.71 19.58c-.83.86-1.73.73-2.6.32-1.24-.53-2.34-.55-3.63 0-1.62.7-2.48.5-3.44-.32C4.75 14.46 5.47 6.05 10.9 5.72c1.52.08 2.57.84 3.46.9 1.33-.27 2.6-1.06 4.02-.96 1.7.14 2.98.82 3.83 2.03-3.52 2.12-2.69 6.76.54 8.06-.65 1.7-1.48 3.38-2.86 4.63l-.18.2zM13.44 5.86c-.17-2.52 1.86-4.6 4.2-4.8.33 2.92-2.63 5.09-4.2 4.8z"/>
-                    </svg>
-                  </motion.button>
-                </motion.div>
-
-                {!session.isFree && (
+                {!session.isFree && !paymentSetup && (
                   <motion.div
                     variants={itemVariants}
                     className="flex items-start gap-[10px] w-full max-w-[384px] min-h-[66px] rounded-[12px] border border-[#E8CFC1] bg-white p-[10px]"
@@ -498,35 +599,77 @@ function BookingPageInner() {
                   </div>
                 )}
 
-                <motion.div variants={itemVariants} className="flex flex-col gap-[10px] w-full mt-2">
-                  <motion.div
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <button
-                      type="button"
-                      disabled={submitting}
-                      onClick={handleSubmit}
-                      className="w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                {session.isFree ? (
+                  <motion.div variants={itemVariants} className="flex flex-col gap-[10px] w-full mt-2">
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {submitting ? 'Booking...' : t('confirmBooking')}
-                    </button>
-                  </motion.div>
-                  <motion.div
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <button
-                      type="button"
-                      className="w-full h-[60px] rounded-[10px] border-2 border-[#781E36] bg-transparent px-[10px] text-base font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
-                      onClick={() => window.history.back()}
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={handleFreeSubmit}
+                        className="w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {submitting ? 'Booking...' : t('confirmBooking')}
+                      </button>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.2 }}
                     >
-                      {t('backToSession')}
-                    </button>
+                      <button
+                        type="button"
+                        className="w-full h-[60px] rounded-[10px] border-2 border-[#781E36] bg-transparent px-[10px] text-base font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
+                        onClick={() => window.history.back()}
+                      >
+                        {t('backToSession')}
+                      </button>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
+                ) : paymentSetup ? (
+                  <Elements stripe={stripePromise} options={elementsOptions}>
+                    <StripeCheckout
+                      onSuccess={handlePaymentSuccess}
+                      onBack={() => {
+                        setPaymentSetup(null);
+                        setErrorMessage(null);
+                      }}
+                    />
+                  </Elements>
+                ) : (
+                  <motion.div variants={itemVariants} className="flex flex-col gap-[10px] w-full mt-2">
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <button
+                        type="button"
+                        disabled={submitting}
+                        onClick={handleStartPayment}
+                        className="w-full h-[60px] flex items-center justify-center rounded-[10px] bg-[#781E36] px-[10px] text-base font-bold text-white hover:bg-[#B83A4A] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {submitting ? 'Checking availability...' : t('payAndBook')}
+                      </button>
+                    </motion.div>
+                    <motion.div
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <button
+                        type="button"
+                        className="w-full h-[60px] rounded-[10px] border-2 border-[#781E36] bg-transparent px-[10px] text-base font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
+                        onClick={() => window.history.back()}
+                      >
+                        {t('backToSession')}
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
               </motion.div>
             </motion.div>
           </Reveal>

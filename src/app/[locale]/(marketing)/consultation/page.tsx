@@ -5,10 +5,13 @@ import { Link } from '@/i18n/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
-import { ArrowRight, Search, ChevronDown, User, MapPin, Calendar, Clock, Building2, ChevronLeft, BadgeCheck, Wallet, Globe } from 'lucide-react';
+import { ArrowRight, Search, ChevronDown, User, MapPin, Calendar, Clock, Building2, BadgeCheck, Wallet, Globe } from 'lucide-react';
 import Breadcrumb from '@/components/shared/Breadcrumb';
 import Reveal from '@/components/shared/Reveal';
-import { getPublishedConsultations, type PublicConsultation } from '@/lib/api/consultations';
+import Pagination from '@/components/shared/Pagination';
+import { getPublishedConsultationsPage, type PublicConsultation } from '@/lib/api/consultations';
+import { CONSULTATION_HERO_IMAGE, CONSULTATION_IMAGES } from '@/lib/image-pools';
+import { usePagePresentation } from '@/hooks/usePagePresentation';
 
 const containerVariants = {
   hidden: {},
@@ -30,9 +33,6 @@ type Filter = { name: string; label: string; isDropdown: boolean; options: strin
 type WhyItem = { title: string; subtitle: string };
 type FaqItem = { question: string; answer: string };
 
-const FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=800&auto=format&fit=crop';
-
 export default function ConsultationPage() {
   return (
     <Suspense
@@ -53,6 +53,7 @@ function ConsultationPageInner() {
   const searchParams = useSearchParams();
 
   const [sessions, setSessions] = useState<PublicConsultation[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [searchText, setSearchText] = useState(searchParams.get('search') ?? '');
   const [activeTab, setActiveTab] = useState<'all' | 'free' | 'paid'>('all');
@@ -65,6 +66,13 @@ function ConsultationPageInner() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const perPage = 6;
+
+  const presentation = usePagePresentation('consultation', {
+    title: t('title'),
+    description: t('description'),
+    heroImage: CONSULTATION_HERO_IMAGE,
+    badge: t('free'),
+  });
 
   const sessionTabs = [
     { key: 'all' as const, label: t('allSessions') },
@@ -136,9 +144,13 @@ function ConsultationPageInner() {
       if (filters.date) params.date = mapDate(filters.date);
       if (activeTab === 'free') params.free = 'true';
       if (activeTab === 'paid') params.free = 'false';
-      const list = await getPublishedConsultations(params);
+      params.page = String(currentPage);
+      params.perPage = String(perPage);
+      setLoaded(false);
+      const pageRes = await getPublishedConsultationsPage(params);
       if (cancelled) return;
-      setSessions(list);
+      setSessions(pageRes.data);
+      setTotalPages(pageRes.meta?.totalPages ?? 1);
       setLoaded(true);
     }
     run();
@@ -146,7 +158,7 @@ function ConsultationPageInner() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchText, filters, activeTab, reloadKey]);
+  }, [searchText, filters, activeTab, reloadKey, currentPage]);
 
   const toggleDropdown = (name: string) => {
     setOpenDropdown(openDropdown === name ? null : name);
@@ -161,9 +173,8 @@ function ConsultationPageInner() {
     setReloadKey((k) => k + 1);
   }
 
-  const totalPages = Math.max(1, Math.ceil(sessions.length / perPage));
   const safePage = Math.min(currentPage, totalPages);
-  const paged = sessions.slice((safePage - 1) * perPage, safePage * perPage);
+  const paged = sessions;
 
   const whyItems = t.raw('whyItems') as WhyItem[];
   const whyIcons = [User, Wallet, Globe, BadgeCheck];
@@ -182,43 +193,42 @@ function ConsultationPageInner() {
 
       <Reveal delay={0.1} direction="up">
         <section className="w-full bg-white mb-16">
-          <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-12">
-            <div className="flex flex-col md:flex-row items-start gap-10">
-              <div className="flex flex-col gap-8 max-w-[672px] w-full">
-                <h1 className="font-bold text-[#781E36] max-w-[480px] text-3xl sm:text-4xl lg:text-[48px] leading-tight lg:leading-[75px]">
-                  {t('title')}
+          <div className="max-w-[1120px] mx-auto px-4 md:px-8 py-14">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-16 items-center">
+              <div className="flex flex-col gap-6">
+                <h1 className="font-bold text-[#781E36] text-3xl sm:text-4xl lg:text-[40px] leading-tight">
+                  {presentation.title}
                 </h1>
-                <p className="font-normal text-[#6B5B57] max-w-[640px] text-base md:text-lg lg:text-[22px] leading-relaxed lg:leading-[32px]">
-                  {t('description')}
+                <p className="font-normal text-[#6B5B57] text-base md:text-lg leading-relaxed">
+                  {presentation.description}
                 </p>
                 <div className="flex flex-col sm:flex-row items-center gap-4 mt-2">
                   <Link
                     href="#sessions"
-                    className="flex h-[60px] w-full sm:w-[300px] items-center justify-center gap-2 rounded-[20px] bg-[#781E36] px-[10px] text-sm font-bold text-white shadow-lg hover:bg-[#B83A4A] transition-colors"
+                    className="flex h-[56px] w-full sm:w-[280px] items-center justify-center gap-2 rounded-[16px] bg-[#781E36] px-[10px] text-sm font-bold text-white shadow-lg hover:bg-[#B83A4A] transition-colors"
                   >
                     {t('browseSessions')}
                     <ArrowRight className="h-5 w-5 rtl:rotate-180" />
                   </Link>
                   <Link
                     href="#learn-more"
-                    className="flex h-[60px] w-full sm:w-[300px] items-center justify-center gap-2 rounded-[20px] border-2 border-[#781E36] bg-transparent px-[10px] text-sm font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
+                    className="flex h-[56px] w-full sm:w-[280px] items-center justify-center gap-2 rounded-[16px] border-2 border-[#781E36] bg-transparent px-[10px] text-sm font-bold text-[#781E36] hover:bg-[#781E36] hover:text-white transition-colors"
                   >
                     {t('learnMore')}
                   </Link>
                 </div>
               </div>
 
-              <div className="w-full max-w-[640px]">
-                <div className="relative w-full h-[280px] sm:h-[420px] lg:h-[600px] rounded-[20px] overflow-hidden">
-                  <Image
-                    src={FALLBACK_IMAGE}
-                    alt={t('title')}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 640px"
-                    priority
-                  />
-                </div>
+              <div className="relative order-first md:order-last w-full max-w-[540px] mx-auto aspect-[4/5] max-h-[560px] rounded-[24px] overflow-hidden">
+                <Image
+                  src={presentation.heroImage}
+                  alt={presentation.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 540px"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#781E36]/20 via-transparent to-transparent" />
               </div>
             </div>
           </div>
@@ -341,6 +351,7 @@ function ConsultationPageInner() {
                   setSearchText('');
                   setFilters({ marital: '', language: '', date: '' });
                   setActiveTab('all');
+                  setCurrentPage(1);
                 }}
                 className="h-[52px] rounded-[12px] bg-[#781E36] px-6 text-sm font-bold text-white hover:bg-[#B83A4A] transition-colors"
               >
@@ -355,7 +366,10 @@ function ConsultationPageInner() {
               whileInView="visible"
               viewport={{ once: false, margin: '-50px' }}
             >
-              {paged.map((card) => (
+              {paged.map((card, i) => {
+                const globalIndex = (safePage - 1) * perPage + i;
+                const coverImg = card.coverImage || CONSULTATION_IMAGES[globalIndex % CONSULTATION_IMAGES.length];
+                return (
                 <motion.div
                   key={card.id}
                   variants={itemVariants}
@@ -366,12 +380,13 @@ function ConsultationPageInner() {
                 >
                   <div className="relative w-full h-[224px] overflow-hidden bg-[#FAEDE6]">
                     <Image
-                      src={card.coverImage || FALLBACK_IMAGE}
+                      src={coverImg}
                       alt={card.sessionTitle}
                       fill
                       className="object-cover"
                       sizes="400px"
                     />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#781E36]/15 via-transparent to-transparent" />
                   </div>
 
                   <div className="flex flex-col gap-4 p-5">
@@ -445,33 +460,13 @@ function ConsultationPageInner() {
                     </div>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
             </motion.div>
           )}
 
-          {loaded && sessions.length > perPage && (
-            <div className="flex flex-wrap items-center justify-center gap-[30px] mx-auto mt-8">
-              <button type="button" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
-                <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
-              </button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <button
-                  key={page}
-                  type="button"
-                  onClick={() => setCurrentPage(page)}
-                  className={`w-[35px] h-[42px] px-[10px] text-sm font-bold transition-colors ${
-                    page === currentPage
-                      ? 'rounded-[4px] bg-[#781E36] text-white'
-                      : 'rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36]'
-                  }`}
-                >
-                  {page}
-                </button>
-              ))}
-              <button type="button" onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="flex items-center justify-center w-[35px] h-[42px] rounded-[10px] border border-[#E8CFC1] bg-white text-[#6B5B57] hover:border-[#781E36] hover:text-[#781E36] transition-colors">
-                <ChevronLeft className="h-4 w-4 rotate-180 rtl:rotate-0" />
-              </button>
-            </div>
+          {loaded && totalPages > 1 && (
+            <Pagination page={currentPage} totalPages={totalPages} onChange={setCurrentPage} className="mt-8" />
           )}
         </div>
       </Reveal>

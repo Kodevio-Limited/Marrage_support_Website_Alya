@@ -204,6 +204,7 @@
     "learnMore": "Learn More",
     "searchPlaceholder": "Search news articles...",
     "search": "Search",
+    "reset": "Reset filters",
     "latest": "Latest",
     "category": "Category",
     "date": "Date",
@@ -283,8 +284,8 @@
     ]
   },
   "shorts": {
-    "title": "Discover Expert Marriage & Family Guidance Through Short Videos — Quick Tips for Stronger Relationships & Healthy Families",
-    "description": "Discover expert tips, relationship advice, marriage guidance, and family support through engaging short-form videos from trusted organizations across the UAE. Watch, learn, and grow together with our curated collection of meaningful content designed for every stage of your journey.",
+    "title": "Expert Marriage & Family Advice, in Short Videos",
+    "description": "Concise, practical guidance from certified experts across the UAE. Watch, learn, and grow together - one short video at a time.",
     "searchPlaceholder": "Search short videos...",
     "search": "Search",
     "resetFilters": "Reset Filters",
@@ -670,6 +671,10 @@
     "agreeAnd": "and",
     "agreePrivacy": "privacy policy",
     "confirmBooking": "Confirm Booking",
+    "payAndBook": "Pay & Book",
+    "payNow": "Pay Now",
+    "processingPayment": "Processing payment...",
+    "securePayment": "Secure payment powered by Stripe",
     "backToSession": "Back to Session"
   },
   "confirmation": {
