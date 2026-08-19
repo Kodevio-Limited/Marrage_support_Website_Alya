@@ -1,16 +1,18 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Heading from '../shared/Heading';
+import Pagination from '../shared/Pagination';
 import { Calendar, ArrowRight, Bookmark } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { getPublishedNews, type PublicNews } from '@/lib/api/news';
+import { getPublishedNewsPage } from '@/lib/api/news';
 import { homeContent } from '@/lib/mock-data/home';
 
 const fallbackImages = homeContent.latestNews.map((n) => n.image.src);
+const ITEMS_PER_PAGE = 9;
 
 interface NewsDisplayItem {
   tag: string;
@@ -24,17 +26,27 @@ interface NewsDisplayItem {
 function useLatestNews(
   fallback: { tag: string; date: string; title: string; excerpt: string }[],
   fallbackImgs: string[],
-): NewsDisplayItem[] {
+): { items: NewsDisplayItem[]; page: number; totalPages: number; setPage: (p: number) => void } {
   const [items, setItems] = useState<NewsDisplayItem[]>(() =>
     fallback.map((n, i) => ({ ...n, image: fallbackImgs[i % fallbackImgs.length] })),
   );
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
-    getPublishedNews()
-      .then((list: PublicNews[]) => {
-        if (cancelled || !list.length) return;
-        const mapped: NewsDisplayItem[] = list.slice(0, 3).map((n) => ({
+    // fallback / fallbackImgs are stable seed/translation data for when the API returns empty.
+    getPublishedNewsPage({ page: String(page), perPage: String(ITEMS_PER_PAGE) })
+      .then(({ data, meta }) => {
+        if (cancelled) return;
+        if (!data.length) {
+          setItems(
+            fallback.map((n, i) => ({ ...n, image: fallbackImgs[i % fallbackImgs.length] })),
+          );
+          setTotalPages(1);
+          return;
+        }
+        const mapped: NewsDisplayItem[] = data.map((n) => ({
           tag: n.category || 'News',
           date: n.publishedDate || new Date().toISOString().slice(0, 10),
           title: n.articleTitle,
@@ -43,20 +55,23 @@ function useLatestNews(
           slug: n.slug,
         }));
         setItems(mapped);
+        setTotalPages(meta.totalPages);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
-  return items;
+  return { items, page, totalPages, setPage };
 }
 
 export default function LatestNews() {
   const t = useTranslations('home');
   const fallbackItems = t.raw('news') as { tag: string; date: string; title: string; excerpt: string }[];
-  const items = useLatestNews(fallbackItems, fallbackImages);
+  const { items, page, totalPages, setPage } = useLatestNews(fallbackItems, fallbackImages);
+  const onPageChange = useCallback((p: number) => setPage(p), [setPage]);
 
   return (
     <Section background="muted" spacing="none" id="news" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
@@ -126,11 +141,16 @@ export default function LatestNews() {
                   <Bookmark className="h-4 w-4 text-gray-400 hover:text-[#781E36] transition-colors" />
                 </div>
               </div>
-            </div>
+              </div>
             </Link>
           </Reveal>
         ))}
       </div>
+      {totalPages > 1 && (
+        <Reveal direction="up">
+          <Pagination page={page} totalPages={totalPages} onChange={onPageChange} />
+        </Reveal>
+      )}
       </div>
     </Section>
   );

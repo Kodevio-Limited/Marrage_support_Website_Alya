@@ -38,6 +38,13 @@ export interface PublicNewsDetail extends PublicNews {
   relatedStories: PublicNewsRelated[];
 }
 
+export interface PaginationMeta {
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8000/api';
 
@@ -56,6 +63,29 @@ export async function getPublishedNews(
   } catch (e) {
     console.warn('[news] Falling back to empty list:', e);
     return [];
+  }
+}
+
+export async function getPublishedNewsPage(
+  params: Record<string, string> = {},
+): Promise<{ data: PublicNews[]; meta: PaginationMeta }> {
+  const qs = new URLSearchParams(params).toString();
+  try {
+    const res = await fetch(`${API_URL}/news${qs ? `?${qs}` : ''}`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) throw new Error(`Failed to load news (${res.status})`);
+    const json = await res.json();
+    if (Array.isArray(json)) {
+      return { data: json, meta: { page: 1, perPage: json.length, total: json.length, totalPages: 1 } };
+    }
+    return {
+      data: (json?.data as PublicNews[]) ?? [],
+      meta: (json?.meta as PaginationMeta) ?? { page: 1, perPage: 10, total: 0, totalPages: 1 },
+    };
+  } catch (e) {
+    console.warn('[news] Falling back to empty list:', e);
+    return { data: [], meta: { page: 1, perPage: 9, total: 0, totalPages: 1 } };
   }
 }
 

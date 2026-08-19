@@ -1,13 +1,14 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Heading from '../shared/Heading';
 import { MapPin, Building2, ChevronRight } from 'lucide-react';
+import { getPublishedEmirates } from '@/lib/api/emirates';
 
-const images = [
+const fallbackImages = [
   'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1518684079-3c830dcef090?q=80&w=600&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1584551246679-0daf3d275d0f?q=80&w=600&auto=format&fit=crop',
@@ -15,10 +16,41 @@ const images = [
   'https://images.unsplash.com/photo-1528702748617-c64d49f918af?q=80&w=600&auto=format&fit=crop',
 ];
 
+interface EmirateItem {
+  name: string;
+  title: string;
+  centerCount: string;
+  image: string;
+}
+
 export default function ExploreByEmirate() {
   const t = useTranslations('home');
-  const items = t.raw('emirates') as { name: string; title: string; centerCount: string }[];
+  const fallback = t.raw('emirates') as { name: string; title: string; centerCount: string }[];
+  const fallbackItems = fallback.map((item, i) => ({
+    ...item,
+    image: fallbackImages[i % fallbackImages.length],
+  }));
+  const [items, setItems] = useState<EmirateItem[]>(fallbackItems);
   const isCapital = (index: number) => index === 0;
+
+  useEffect(() => {
+    let cancelled = false;
+    getPublishedEmirates()
+      .then((list) => {
+        if (cancelled || !list?.length) return;
+        const mapped: EmirateItem[] = list.map((e, i) => ({
+          name: e.emiratesName,
+          title: e.title || e.emiratesName,
+          centerCount: e.centerCount || '',
+          image: e.image || fallbackImages[i % fallbackImages.length],
+        }));
+        setItems(mapped);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <Section background="default" spacing="none" id="emirates" className="py-[64px] sm:py-[80px]">
@@ -46,7 +78,7 @@ export default function ExploreByEmirate() {
               }}
             >
               <Image
-                src={images[index % images.length]}
+                src={item.image}
                 alt={item.name}
                 fill
                 className="object-cover transition-transform duration-700 group-hover:scale-105"

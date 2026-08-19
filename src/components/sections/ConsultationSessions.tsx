@@ -1,14 +1,15 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Section from '../shared/Section';
 import Reveal from '../shared/Reveal';
 import Button from '../shared/Button';
 import Heading from '../shared/Heading';
+import Pagination from '../shared/Pagination';
 import { Calendar, Clock } from 'lucide-react';
 import {
-  getPublishedConsultations,
+  getPublishedConsultationsPage,
   type PublicConsultation,
 } from '@/lib/api/consultations';
 
@@ -16,6 +17,8 @@ const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=300&auto=format&fit=crop',
   'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=300&auto=format&fit=crop',
 ];
+
+const ITEMS_PER_PAGE = 6;
 
 type LocalizedSession = {
   id: string;
@@ -46,22 +49,39 @@ export default function ConsultationSessions() {
 
   const [items, setItems] = useState<LocalizedSession[]>([]);
   const [activeTab, setActiveTab] = useState<'free' | 'paid'>('free');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const list = await getPublishedConsultations({});
-      if (cancelled || !list?.length) return;
-      const sessions = list.slice(0, 2).map((s, i) => toLocalized(s, i));
-      setItems(sessions);
+      const result = await getPublishedConsultationsPage({
+        page: String(page),
+        perPage: String(ITEMS_PER_PAGE),
+        free: activeTab === 'free' ? '1' : '0',
+      });
+      if (cancelled) return;
+      setItems(result.data.map((s, i) => toLocalized(s, i)));
+      setTotalPages(result.meta.totalPages);
+      setLoading(false);
     }
     load();
     return () => {
       cancelled = true;
     };
+  }, [activeTab, page]);
+
+  const handleTabChange = useCallback((tab: 'free' | 'paid') => {
+    setLoading(true);
+    setActiveTab(tab);
+    setPage(1);
   }, []);
 
-  const filtered = activeTab === 'free' ? items : items.slice(1);
+  const handlePageChange = useCallback((next: number) => {
+    setLoading(true);
+    setPage(next);
+  }, []);
 
   return (
     <Section background="muted" spacing="none" id="consultation" containerClassName="!max-w-[1440px]" className="py-[64px] sm:py-[80px]">
@@ -89,7 +109,7 @@ export default function ConsultationSessions() {
               />
               <button
                 type="button"
-                onClick={() => setActiveTab('free')}
+                onClick={() => handleTabChange('free')}
                 className={`relative z-10 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
                   activeTab === 'free' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
@@ -98,7 +118,7 @@ export default function ConsultationSessions() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('paid')}
+                onClick={() => handleTabChange('paid')}
                 className={`relative z-10 rounded-full py-2 text-sm font-bold transition-colors duration-200 ${
                   activeTab === 'paid' ? 'text-[#781E36]' : 'text-[#6B5B57]'
                 }`}
@@ -111,7 +131,7 @@ export default function ConsultationSessions() {
 
         {/* Grid of Cards */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {filtered.map((session, index) => (
+          {items.map((session, index) => (
             <Reveal key={`${session.id}-${index}`} delay={index * 0.15} direction="up">
               <div
                 className="group flex h-auto min-h-[263px] w-full max-w-[620px] mx-auto flex-col rounded-[24px] bg-white p-6 transition-all duration-300 hover:-translate-y-1.5"
@@ -165,10 +185,17 @@ export default function ConsultationSessions() {
           ))}
         </div>
 
-        {filtered.length === 0 && (
+        {!loading && items.length === 0 && (
           <p className="text-center text-base font-normal text-[#6B5B57]">
             No sessions available just yet.
           </p>
+        )}
+
+        {/* Pagination: shown only when more than one page exists */}
+        {totalPages > 1 && (
+          <Reveal direction="up">
+            <Pagination page={page} totalPages={totalPages} onChange={handlePageChange} />
+          </Reveal>
         )}
       </div>
     </Section>
