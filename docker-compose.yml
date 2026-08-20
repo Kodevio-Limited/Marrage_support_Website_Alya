@@ -18,15 +18,12 @@ services:
       - traefik.http.routers.alia-web.tls.certResolver=letsencrypt
       - traefik.docker.network=dokploy-network
       - traefik.http.services.alia-web.loadbalancer.server.port=3000
-<<<<<<< HEAD
       # HTTP -> HTTPS redirect
       - traefik.http.routers.alia-web-http.rule=Host(`aia.kodevio.com`)
       - traefik.http.routers.alia-web-http.entrypoints=web
       - traefik.http.routers.alia-web-http.middlewares=alia-web-redirect
       - traefik.http.middlewares.alia-web-redirect.redirectscheme.scheme=https
       - traefik.http.middlewares.alia-web-redirect.redirectscheme.permanent=true
-=======
->>>>>>> e9c29e17c7ffe8239ff669e2741e4a6e49c71ce4
 
 networks:
   dokploy-network:
