@@ -675,6 +675,7 @@
     "payNow": "Pay Now",
     "processingPayment": "Processing payment...",
     "securePayment": "Secure payment powered by Stripe",
+    "paymentNotConfigured": "الدفع عبر الإنترنت غير متاح حالياً. يرجى التواصل مع الدعم.",
     "backToSession": "العودة إلى الجلسة"
   },
   "confirmation": {

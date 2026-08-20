@@ -21,9 +21,13 @@ import {
   type PaymentIntentResult,
 } from '@/lib/api/payments';
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '',
-);
+function getStripePromise() {
+  const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (!key || key === 'pk_test_xxx') return null;
+  return loadStripe(key);
+}
+
+const stripePromise = getStripePromise();
 
 const containerVariants = {
   hidden: {},
@@ -288,6 +292,12 @@ function BookingPageInner() {
     }
     setSubmitting(true);
     try {
+      if (!stripePromise) {
+        setErrorMessage(
+          t('paymentNotConfigured') || 'Online payment is not available right now. Please contact support.',
+        );
+        return;
+      }
       const result = await createPaymentIntent({
         consultationId: session.id,
         fullName: form.fullName.trim(),
@@ -630,15 +640,23 @@ function BookingPageInner() {
                     </motion.div>
                   </motion.div>
                 ) : paymentSetup ? (
-                  <Elements stripe={stripePromise} options={elementsOptions}>
-                    <StripeCheckout
-                      onSuccess={handlePaymentSuccess}
-                      onBack={() => {
-                        setPaymentSetup(null);
-                        setErrorMessage(null);
-                      }}
-                    />
-                  </Elements>
+                  stripePromise ? (
+                    <Elements stripe={stripePromise} options={elementsOptions}>
+                      <StripeCheckout
+                        onSuccess={handlePaymentSuccess}
+                        onBack={() => {
+                          setPaymentSetup(null);
+                          setErrorMessage(null);
+                        }}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="w-full rounded-[10px] border border-[#B83A4A] bg-[#B83A4A]/5 px-4 py-3">
+                      <p className="text-sm font-medium text-[#B83A4A]">
+                        {t('paymentNotConfigured') || 'Online payment is not available right now. Please contact support.'}
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <motion.div variants={itemVariants} className="flex flex-col gap-[10px] w-full mt-2">
                     <motion.div
