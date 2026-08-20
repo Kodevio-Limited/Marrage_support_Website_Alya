@@ -5,6 +5,9 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  outputFileTracingIncludes: {
+    '*': ['./node_modules/@swc/helpers/esm/**/*'],
+  },
   images: {
     deviceSizes: [640, 750, 828, 1080, 1200, 1280, 1920, 2048, 3840],
     dangerouslyAllowLocalIP: true,
