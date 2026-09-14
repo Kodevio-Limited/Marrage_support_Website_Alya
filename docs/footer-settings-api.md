@@ -4,6 +4,13 @@ This document is the contract between the Alia **Django backend / admin panel**
 and the **Next.js frontend** for the footer that appears on every user-facing
 page.
 
+> **Admin panel requirement: the footer must be editable through its own
+> dedicated "Footer settings" tab/section in the Django admin panel** (a
+> singleton `FooterSettings` page with `FooterLink` inlines — see §1.2).
+> Admins must NOT have to touch code or other models to change footer
+> content. All footer content shown in the user panel must come from the
+> backend through this endpoint.
+
 The frontend now fetches footer content from:
 
 ```
@@ -54,6 +61,32 @@ class FooterSettings(models.Model):
     )
     government_initiative_ar = models.CharField(
         "Government initiative line (Arabic)", max_length=200, blank=True, default=""
+    )
+
+    # Column headings — editable so the admin controls every footer string.
+    quick_links_heading = models.CharField(
+        "Quick Links heading (English)", max_length=120, blank=True, default=""
+    )
+    quick_links_heading_ar = models.CharField(
+        "Quick Links heading (Arabic)", max_length=120, blank=True, default=""
+    )
+    resources_heading = models.CharField(
+        "Resources heading (English)", max_length=120, blank=True, default=""
+    )
+    resources_heading_ar = models.CharField(
+        "Resources heading (Arabic)", max_length=120, blank=True, default=""
+    )
+    contacts_heading = models.CharField(
+        "Contacts heading (English)", max_length=120, blank=True, default=""
+    )
+    contacts_heading_ar = models.CharField(
+        "Contacts heading (Arabic)", max_length=120, blank=True, default=""
+    )
+    built_for_text = models.CharField(
+        "Bottom bar tagline (English)", max_length=200, blank=True, default=""
+    )
+    built_for_text_ar = models.CharField(
+        "Bottom bar tagline (Arabic)", max_length=200, blank=True, default=""
     )
 
     phone = models.CharField(max_length=40, blank=True, default="")
@@ -117,6 +150,14 @@ class FooterSettingsAdmin(admin.ModelAdmin):
   "brandTextAr": "عالية هي المنصة الرسمية…",
   "governmentInitiative": "United Arab Emirates Government Initiative",
   "governmentInitiativeAr": "مبادرة حكومة دولة الإمارات العربية المتحدة",
+  "quickLinksHeading": "Quick Links",
+  "quickLinksHeadingAr": "روابط سريعة",
+  "resourcesHeading": "Resources",
+  "resourcesHeadingAr": "مصادر",
+  "contactsHeading": "Contacts",
+  "contactsHeadingAr": "جهات الاتصال",
+  "builtForText": "Built for Emirati Families",
+  "builtForTextAr": "صُمم للعائلات الإماراتية",
   "phone": "+971 800 2542",
   "email": "support@alia.gov.ae",
   "address": "Abu Dhabi, UAE",
@@ -148,6 +189,10 @@ Field notes:
 | --- | --- | --- |
 | `brandText` / `brandTextAr` | no | Falls back to `footer.brand` i18n string |
 | `governmentInitiative(Ar)` | no | Falls back to `footer.governmentInitiative` |
+| `quickLinksHeading(Ar)` | no | Falls back to `footer.quickLinks` |
+| `resourcesHeading(Ar)` | no | Falls back to `footer.resources` |
+| `contactsHeading(Ar)` | no | Falls back to `footer.contacts` |
+| `builtForText(Ar)` | no | Falls back to `footer.builtFor` |
 | `phone` / `email` / `address(Ar)` | no | Falls back to the current hardcoded contact values |
 | `copyright(Ar)` | no | Falls back to `© {year} {footer.allRights}` |
 | `quickLinks` / `resources` | no | Falls back to the current default link sets with localized labels |
@@ -178,6 +223,14 @@ class FooterSettingsSerializer(serializers.ModelSerializer):
     brandTextAr = serializers.CharField(source="brand_text_ar", required=False, allow_blank=True)
     governmentInitiative = serializers.CharField(source="government_initiative", required=False, allow_blank=True)
     governmentInitiativeAr = serializers.CharField(source="government_initiative_ar", required=False, allow_blank=True)
+    quickLinksHeading = serializers.CharField(source="quick_links_heading", required=False, allow_blank=True)
+    quickLinksHeadingAr = serializers.CharField(source="quick_links_heading_ar", required=False, allow_blank=True)
+    resourcesHeading = serializers.CharField(source="resources_heading", required=False, allow_blank=True)
+    resourcesHeadingAr = serializers.CharField(source="resources_heading_ar", required=False, allow_blank=True)
+    contactsHeading = serializers.CharField(source="contacts_heading", required=False, allow_blank=True)
+    contactsHeadingAr = serializers.CharField(source="contacts_heading_ar", required=False, allow_blank=True)
+    builtForText = serializers.CharField(source="built_for_text", required=False, allow_blank=True)
+    builtForTextAr = serializers.CharField(source="built_for_text_ar", required=False, allow_blank=True)
     addressAr = serializers.CharField(source="address_ar", required=False, allow_blank=True)
     copyright = serializers.CharField(source="copyright", required=False, allow_blank=True)
     copyrightAr = serializers.CharField(source="copyright_ar", required=False, allow_blank=True)
@@ -190,6 +243,10 @@ class FooterSettingsSerializer(serializers.ModelSerializer):
         fields = [
             "brandText", "brandTextAr",
             "governmentInitiative", "governmentInitiativeAr",
+            "quickLinksHeading", "quickLinksHeadingAr",
+            "resourcesHeading", "resourcesHeadingAr",
+            "contactsHeading", "contactsHeadingAr",
+            "builtForText", "builtForTextAr",
             "phone", "email", "address", "addressAr",
             "copyright", "copyrightAr",
             "quickLinks", "resources",
@@ -222,3 +279,21 @@ path("footer-settings/", footer_settings, name="footer-settings"),
   `target="_blank" rel="noopener noreferrer"`.
 - Because the fetch is cached for 60s, admin changes appear on the user panel
   within about a minute (or immediately after a revalidation/deploy).
+
+## 5. Admin panel checklist (Django admin)
+
+To expose the footer as its own admin-panel tab/section:
+
+1. Add the `FooterSettings` singleton model + `FooterLink` model from §1 and
+   run migrations.
+2. Register them in `admin.py` exactly as in §1.2 so the admin sidebar shows a
+   **"Footer settings"** entry; opening it presents every editable footer
+   string (brand text, initiative line, column headings, tagline, contact
+   info, copyright) plus the Quick Links and Resources inline tables.
+3. Keep the singleton behavior (`has_add_permission`/`has_delete_permission`)
+   so there is exactly one editable settings page — it acts as the tab's
+   single screen.
+4. Every field is blank-able: when a field is left empty the user panel
+   automatically falls back to the built-in i18n strings (§2), so the admin
+   can translate/edit selectively (e.g. Arabic only) without breaking the
+   footer.

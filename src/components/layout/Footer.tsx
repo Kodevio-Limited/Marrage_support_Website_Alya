@@ -130,6 +130,22 @@ export default function Footer() {
     content?.governmentInitiativeAr,
     t('governmentInitiative'),
   );
+  const quickLinksHeading = pick(
+    content?.quickLinksHeading,
+    content?.quickLinksHeadingAr,
+    t('quickLinks'),
+  );
+  const resourcesHeading = pick(
+    content?.resourcesHeading,
+    content?.resourcesHeadingAr,
+    t('resources'),
+  );
+  const contactsHeading = pick(
+    content?.contactsHeading,
+    content?.contactsHeadingAr,
+    t('contacts'),
+  );
+  const builtForText = pick(content?.builtForText, content?.builtForTextAr, t('builtFor'));
   const phone = pickLocalized(content?.phone, '+971 800 2542');
   const email = pickLocalized(content?.email, 'support@alia.gov.ae');
   const address = pick(content?.address, content?.addressAr, 'Abu Dhabi, UAE');
@@ -189,7 +205,7 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-3 max-w-[272px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('quickLinks')}</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{quickLinksHeading}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
               {quickLinks.map((item, i) => (
                 <motion.li
@@ -231,7 +247,7 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-3 max-w-[272px] pb-[40px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('resources')}</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{resourcesHeading}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
               {resourceLinks.map((item, i) => (
                 <motion.li
@@ -273,7 +289,7 @@ export default function Footer() {
             viewport={{ once: false, margin: '-30px' }}
             className="flex flex-col gap-[24px] lg:col-span-2 max-w-[272px] pb-[8px] min-h-[236px]"
           >
-            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('contacts')}</h4>
+            <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{contactsHeading}</h4>
             <div className="flex flex-col gap-3 text-xs md:text-sm font-semibold">
               <motion.a
                 href={`tel:${phone.replace(/[^+\d]/g, '')}`}
@@ -318,7 +334,7 @@ export default function Footer() {
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             >
-              <span>{t('builtFor')}</span>
+              <span>{builtForText}</span>
               <Heart className="h-3.5 w-3.5 fill-[#781E36] text-[#781E36]" />
             </motion.div>
           </motion.div>

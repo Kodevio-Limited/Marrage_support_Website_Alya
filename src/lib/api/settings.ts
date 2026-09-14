@@ -4,6 +4,31 @@ export interface PublicStaticPage {
 }
 
 /**
+ * A single navigation link managed from the admin panel. `labelAr` is used
+ * when the site is rendered in Arabic; when empty the English label applies.
+ */
+export interface NavLink {
+  label: string;
+  labelAr?: string;
+  href: string;
+}
+
+/**
+ * Admin-managed navbar content. Every field is optional in the response so the
+ * backend can send a sparse object; the Navbar falls back to i18n strings for
+ * any missing/blank value.
+ */
+export interface NavbarContent {
+  logoUrl: string;
+  logoAlt: string;
+  links: NavLink[];
+  applyNowText: string;
+  applyNowTextAr?: string;
+  applyNowHref: string;
+  updated_at?: string | null;
+}
+
+/**
  * Admin-managed footer content. Every field is optional in the response so the
  * backend can send a sparse object; the Footer falls back to i18n strings for
  * any missing/blank value.
@@ -19,6 +44,14 @@ export interface FooterContent {
   brandTextAr?: string;
   governmentInitiative: string;
   governmentInitiativeAr?: string;
+  quickLinksHeading: string;
+  quickLinksHeadingAr?: string;
+  resourcesHeading: string;
+  resourcesHeadingAr?: string;
+  contactsHeading: string;
+  contactsHeadingAr?: string;
+  builtForText: string;
+  builtForTextAr?: string;
   phone: string;
   email: string;
   address: string;
@@ -55,6 +88,31 @@ export async function getTerms(): Promise<PublicStaticPage | null> {
     return res.json();
   } catch (e) {
     console.warn('[terms] Falling back to empty content:', e);
+    return null;
+  }
+}
+
+/**
+ * Load the navbar content managed from the admin panel. Returns null when the
+ * backend has no navbar settings yet (or is unreachable) so the caller can
+ * render the built-in i18n strings.
+ */
+export async function getNavbarContent(): Promise<NavbarContent | null> {
+  try {
+    const res = await fetch(`${API_URL}/navbar-settings/`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) {
+      if (res.status === 404) return null;
+      throw new Error(`Failed to load navbar settings (${res.status})`);
+    }
+    const json = await res.json();
+    // Support both a bare object and a { data: ... } envelope.
+    const data = (json?.data as NavbarContent | undefined) ?? (json as NavbarContent);
+    if (!data || typeof data !== 'object') return null;
+    return data;
+  } catch (e) {
+    console.warn('[navbar-settings] Falling back to i18n navbar:', e);
     return null;
   }
 }

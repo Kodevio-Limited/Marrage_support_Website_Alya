@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocale, useTranslations } from 'next-intl';
@@ -8,6 +8,11 @@ import { Link } from '@/i18n/navigation';
 import Container from '../shared/Container';
 import Button from '../shared/Button';
 import { Menu, X, ChevronDown } from 'lucide-react';
+import {
+  getNavbarContent,
+  type NavLink,
+  type NavbarContent,
+} from '@/lib/api/settings';
 
 const navLinkVariants = {
   hidden: { opacity: 0, y: -8 },
@@ -17,6 +22,15 @@ const navLinkVariants = {
     transition: { duration: 0.4, ease: [0.16, 1, 0.3, 1] as const, delay: 0.1 + i * 0.05 },
   }),
 };
+
+interface DisplayLink {
+  label: string;
+  href: string;
+}
+
+function isInternalHref(href: string): boolean {
+  return href.startsWith('/') || href.startsWith('#');
+}
 
 function UAEIcon() {
   return (
@@ -50,17 +64,64 @@ export default function Navbar() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [content, setContent] = useState<NavbarContent | null>(null);
 
-  const navLinks = [
-    { label: t('home'), href: '/' },
-    { label: t('about'), href: '/about' },
-    { label: t('contact'), href: '/contact' },
-    { label: t('shorts'), href: '/shorts' },
-    { label: t('news'), href: '/news' },
-    { label: t('initiatives'), href: '/initiatives' },
-    { label: t('consultation'), href: '/consultation' },
-    { label: t('emirates'), href: '/emirates' },
+  useEffect(() => {
+    let mounted = true;
+    getNavbarContent().then((data) => {
+      if (mounted) setContent(data);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const isArabic = locale === 'ar';
+
+  /**
+   * Default nav links mirror the current i18n-driven navbar. Labels resolve
+   * through the `nav` i18n namespace so they stay localized unless the admin
+   * overrides them from the backend.
+   */
+  const defaultNavLinks: Array<{ labelKey: string; href: string }> = [
+    { labelKey: 'home', href: '/' },
+    { labelKey: 'about', href: '/about' },
+    { labelKey: 'contact', href: '/contact' },
+    { labelKey: 'shorts', href: '/shorts' },
+    { labelKey: 'news', href: '/news' },
+    { labelKey: 'initiatives', href: '/initiatives' },
+    { labelKey: 'consultation', href: '/consultation' },
+    { labelKey: 'emirates', href: '/emirates' },
   ];
+
+  const navLinks = useMemo<DisplayLink[]>(() => {
+    const links: NavLink[] | undefined = content?.links;
+    if (!links || links.length === 0) {
+      return defaultNavLinks.map((l) => ({ label: t(l.labelKey), href: l.href }));
+    }
+    return links
+      .map((l) => ({
+        label: (isArabic && l.labelAr ? l.labelAr : l.label || '').trim(),
+        href: (l?.href ?? '').trim(),
+      }))
+      .filter((l) => l.label.length > 0 && l.href.length > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, isArabic, t]);
+
+  const applyNowText = useMemo(() => {
+    const en = (content?.applyNowText ?? '').trim();
+    const ar = (content?.applyNowTextAr ?? '').trim();
+    const value = isArabic ? ar || en : en;
+    return value.length > 0 ? value : t('applyNow');
+  }, [content, isArabic, t]);
+
+  const applyNowHref = useMemo(() => {
+    const href = (content?.applyNowHref ?? '').trim();
+    return href.length > 0 ? href : '#cta';
+  }, [content]);
+
+  const logoUrl = (content?.logoUrl ?? '').trim() || '/Static/alia-logo.png';
+  const logoAlt = (content?.logoAlt ?? '').trim() || 'ALIA Logo';
 
   const switchLocale = (next: 'en' | 'ar') => {
     setLangOpen(false);
@@ -69,8 +130,6 @@ export default function Navbar() {
       router.replace(pathname, { locale: next });
     }
   };
-
-  const isArabic = locale === 'ar';
 
   return (
     <motion.header
@@ -89,8 +148,8 @@ export default function Navbar() {
         >
           <Link href="/" className="group flex items-center focus:outline-none">
             <Image
-              src="/Static/alia-logo.png"
-              alt="ALIA Logo"
+              src={logoUrl}
+              alt={logoAlt}
               width={isArabic ? 48 : 56}
               height={isArabic ? 48 : 56}
               className="object-contain"
@@ -109,12 +168,24 @@ export default function Navbar() {
               initial="hidden"
               animate="visible"
             >
-              <Link
-                href={link.href}
-                className="relative text-[13px] xl:text-sm font-semibold text-gray-700 transition-colors duration-200 hover:text-[#781E36] py-1 whitespace-nowrap after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-[#781E36] after:transition-all after:duration-300 hover:after:w-full"
-              >
-                {link.label}
-              </Link>
+              {isInternalHref(link.href) ? (
+                <Link
+                  href={link.href}
+                  className="relative text-[13px] xl:text-sm font-semibold text-gray-700 transition-colors duration-200 hover:text-[#781E36] py-1 whitespace-nowrap after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-[#781E36] after:transition-all after:duration-300 hover:after:w-full"
+                >
+                  {link.label}
+                </Link>
+              ) : (
+                <a
+                  href={link.href}
+                  className="relative text-[13px] xl:text-sm font-semibold text-gray-700 transition-colors duration-200 hover:text-[#781E36] py-1 whitespace-nowrap after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-[#781E36] after:transition-all after:duration-300 hover:after:w-full"
+                  {...(link.href.startsWith('http')
+                    ? { target: '_blank', rel: 'noopener noreferrer' }
+                    : {})}
+                >
+                  {link.label}
+                </a>
+              )}
             </motion.div>
           ))}
         </nav>
@@ -179,8 +250,8 @@ export default function Navbar() {
           </div>
 
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button href="#cta" size="sm" variant="primary">
-              {t('applyNow')}
+            <Button href={applyNowHref} size="sm" variant="primary">
+              {applyNowText}
             </Button>
           </motion.div>
         </motion.div>
@@ -218,13 +289,26 @@ export default function Navbar() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 0.05 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <Link
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="block text-base font-semibold text-gray-800 hover:text-[#781E36] transition-colors"
-                    >
-                      {link.label}
-                    </Link>
+                    {isInternalHref(link.href) ? (
+                      <Link
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block text-base font-semibold text-gray-800 hover:text-[#781E36] transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="block text-base font-semibold text-gray-800 hover:text-[#781E36] transition-colors"
+                        {...(link.href.startsWith('http')
+                          ? { target: '_blank', rel: 'noopener noreferrer' }
+                          : {})}
+                      >
+                        {link.label}
+                      </a>
+                    )}
                   </motion.div>
                 ))}
                 <motion.div
@@ -259,8 +343,8 @@ export default function Navbar() {
                       English
                     </button>
                   </div>
-                  <Button href="#cta" size="md" variant="primary" className="w-full">
-                    {t('applyNow')}
+                  <Button href={applyNowHref} size="md" variant="primary" className="w-full">
+                    {applyNowText}
                   </Button>
                 </motion.div>
               </nav>
