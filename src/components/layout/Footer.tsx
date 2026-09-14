@@ -1,12 +1,17 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import { Link } from '@/i18n/navigation';
 import Container from '../shared/Container';
 import Reveal from '../shared/Reveal';
 import { Phone, Mail, MapPin, Heart } from 'lucide-react';
+import {
+  getFooterContent,
+  type FooterContent,
+  type FooterLink,
+} from '@/lib/api/settings';
 
 const columnVariants = {
   hidden: { opacity: 0, y: 30 },
@@ -26,8 +31,114 @@ const linkVariants = {
   }),
 };
 
+interface DisplayLink {
+  label: string;
+  href: string;
+}
+
+/**
+ * Default footer links mirror the current i18n-driven footer. Labels resolve
+ * through the `footer` i18n namespace so they stay localized unless the admin
+ * overrides them from the backend.
+ */
+const defaultQuickLinks: Array<{ labelKey: string; href: string }> = [
+  { labelKey: 'home', href: '/' },
+  { labelKey: 'about', href: '/about' },
+  { labelKey: 'contact', href: '/contact' },
+  { labelKey: 'nationalInitiatives', href: '/initiatives' },
+  { labelKey: 'emiratesCenters', href: '/emirates' },
+  { labelKey: 'privacyPolicy', href: '/privacy-policy' },
+  { labelKey: 'termsConditions', href: '/terms-and-conditions' },
+];
+
+const defaultResourceLinks: Array<{ labelKey: string; href: string }> = [
+  { labelKey: 'weddingGrants', href: '#' },
+  { labelKey: 'familyLaw', href: '#' },
+  { labelKey: 'housing', href: '#' },
+  { labelKey: 'media', href: '/news' },
+];
+
+function pickLocalized(
+  value: string | undefined,
+  fallback: string,
+): string {
+  return value && value.trim().length > 0 ? value : fallback;
+}
+
+function normalizeLinks(
+  links: FooterLink[] | undefined,
+  fallbacks: Array<{ labelKey: string; href: string }>,
+  translate: (key: string) => string,
+): DisplayLink[] {
+  if (!links || links.length === 0) {
+    return fallbacks.map((l) => ({ label: translate(l.labelKey), href: l.href }));
+  }
+  return links
+    .map((l) => ({
+      label: (l?.label ?? '').trim(),
+      href: (l?.href ?? '').trim(),
+    }))
+    .filter((l) => l.label.length > 0 && l.href.length > 0)
+    .map((l) => ({ label: l.label, href: l.href || '#' }));
+}
+
 export default function Footer() {
   const t = useTranslations('footer');
+  const locale = useLocale();
+  const isArabic = locale === 'ar';
+  const [content, setContent] = useState<FooterContent | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getFooterContent().then((data) => {
+      if (mounted) setContent(data);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const quickLinks = useMemo(
+    () =>
+      normalizeLinks(
+        content?.quickLinks?.map((l) =>
+          isArabic && l.labelAr ? { ...l, label: l.labelAr } : l,
+        ),
+        defaultQuickLinks,
+        t,
+      ),
+    [content, isArabic, t],
+  );
+  const resourceLinks = useMemo(
+    () =>
+      normalizeLinks(
+        content?.resources?.map((l) =>
+          isArabic && l.labelAr ? { ...l, label: l.labelAr } : l,
+        ),
+        defaultResourceLinks,
+        t,
+      ),
+    [content, isArabic, t],
+  );
+
+  const pick = (en: string | undefined, ar: string | undefined, fallback: string) =>
+    pickLocalized(isArabic ? ar || en : en, fallback);
+
+  const brandText = pick(content?.brandText, content?.brandTextAr, t('brand'));
+  const governmentInitiative = pick(
+    content?.governmentInitiative,
+    content?.governmentInitiativeAr,
+    t('governmentInitiative'),
+  );
+  const phone = pickLocalized(content?.phone, '+971 800 2542');
+  const email = pickLocalized(content?.email, 'support@alia.gov.ae');
+  const address = pick(content?.address, content?.addressAr, 'Abu Dhabi, UAE');
+  const copyright = pick(
+    content?.copyright,
+    content?.copyrightAr,
+    `© ${new Date().getFullYear()} ${t('allRights')}`,
+  );
+
   return (
     <motion.footer
       initial={{ opacity: 0 }}
@@ -58,14 +169,14 @@ export default function Footer() {
               />
             </Link>
             <p className="text-xs md:text-sm leading-relaxed text-[#6B5B57]">
-              {t('brand')}
+              {brandText}
             </p>
             <motion.div
               className="text-xs font-extrabold text-[#781E36]"
               whileHover={{ x: 3 }}
               transition={{ duration: 0.2 }}
             >
-              {t('governmentInitiative')}
+              {governmentInitiative}
             </motion.div>
           </motion.div>
 
@@ -80,17 +191,9 @@ export default function Footer() {
           >
             <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('quickLinks')}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
-              {[
-                { label: t('home'), href: '/' },
-                { label: t('about'), href: '/about' },
-                { label: t('contact'), href: '/contact' },
-                { label: t('nationalInitiatives'), href: '/initiatives' },
-                { label: t('emiratesCenters'), href: '/emirates' },
-                { label: t('privacyPolicy'), href: '/privacy-policy' },
-                { label: t('termsConditions'), href: '/terms-and-conditions' },
-              ].map((item, i) => (
+              {quickLinks.map((item, i) => (
                 <motion.li
-                  key={item.label}
+                  key={`${item.label}-${i}`}
                   custom={i}
                   variants={linkVariants}
                   initial="hidden"
@@ -98,9 +201,21 @@ export default function Footer() {
                   viewport={{ once: false, margin: '-30px' }}
                 >
                   <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }}>
-                    <Link href={item.href} className="hover:text-[#781E36] transition-colors">
-                      {item.label}
-                    </Link>
+                    {isInternalHref(item.href) ? (
+                      <Link href={item.href} className="hover:text-[#781E36] transition-colors">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={item.href}
+                        className="hover:text-[#781E36] transition-colors"
+                        {...(item.href.startsWith('http')
+                          ? { target: '_blank', rel: 'noopener noreferrer' }
+                          : {})}
+                      >
+                        {item.label}
+                      </a>
+                    )}
                   </motion.div>
                 </motion.li>
               ))}
@@ -118,14 +233,9 @@ export default function Footer() {
           >
             <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('resources')}</h4>
             <ul className="flex flex-col gap-2.5 text-xs md:text-sm font-semibold">
-              {[
-                { label: t('weddingGrants'), href: '#' },
-                { label: t('familyLaw'), href: '#' },
-                { label: t('housing'), href: '#' },
-                { label: t('media'), href: '/news' },
-              ].map((item, i) => (
+              {resourceLinks.map((item, i) => (
                 <motion.li
-                  key={item.label}
+                  key={`${item.label}-${i}`}
                   custom={i}
                   variants={linkVariants}
                   initial="hidden"
@@ -133,9 +243,21 @@ export default function Footer() {
                   viewport={{ once: false, margin: '-30px' }}
                 >
                   <motion.div whileHover={{ x: 4 }} transition={{ duration: 0.2 }}>
-                    <Link href={item.href} className="hover:text-[#781E36] transition-colors">
-                      {item.label}
-                    </Link>
+                    {isInternalHref(item.href) ? (
+                      <Link href={item.href} className="hover:text-[#781E36] transition-colors">
+                        {item.label}
+                      </Link>
+                    ) : (
+                      <a
+                        href={item.href}
+                        className="hover:text-[#781E36] transition-colors"
+                        {...(item.href.startsWith('http')
+                          ? { target: '_blank', rel: 'noopener noreferrer' }
+                          : {})}
+                      >
+                        {item.label}
+                      </a>
+                    )}
                   </motion.div>
                 </motion.li>
               ))}
@@ -153,29 +275,31 @@ export default function Footer() {
           >
             <h4 className="text-base font-extrabold text-[#781E36] tracking-wide">{t('contacts')}</h4>
             <div className="flex flex-col gap-3 text-xs md:text-sm font-semibold">
-              <motion.div
-                className="flex items-center gap-2.5"
+              <motion.a
+                href={`tel:${phone.replace(/[^+\d]/g, '')}`}
+                className="flex items-center gap-2.5 hover:text-[#781E36] transition-colors"
                 whileHover={{ x: 3 }}
                 transition={{ duration: 0.2 }}
               >
                 <Phone className="h-4 w-4 text-[#781E36] shrink-0" />
-                <span>+971 800 2542</span>
-              </motion.div>
-              <motion.div
-                className="flex items-center gap-2.5"
+                <span>{phone}</span>
+              </motion.a>
+              <motion.a
+                href={`mailto:${email}`}
+                className="flex items-center gap-2.5 hover:text-[#781E36] transition-colors"
                 whileHover={{ x: 3 }}
                 transition={{ duration: 0.2 }}
               >
                 <Mail className="h-4 w-4 text-[#781E36] shrink-0" />
-                <span className="truncate">support@alia.gov.ae</span>
-              </motion.div>
+                <span className="truncate">{email}</span>
+              </motion.a>
               <motion.div
                 className="flex items-start gap-2.5"
                 whileHover={{ x: 3 }}
                 transition={{ duration: 0.2 }}
               >
                 <MapPin className="h-4 w-4 text-[#781E36] shrink-0 mt-1" />
-                <span>Abu Dhabi, UAE</span>
+                <span>{address}</span>
               </motion.div>
             </div>
           </motion.div>
@@ -188,7 +312,7 @@ export default function Footer() {
             whileHover={{ color: '#781E36' }}
             transition={{ duration: 0.3 }}
           >
-            <p>© {new Date().getFullYear()} {t('allRights')}</p>
+            <p>{copyright}</p>
             <motion.div
               className="flex items-center gap-1.5 text-xs"
               animate={{ scale: [1, 1.05, 1] }}
@@ -202,4 +326,8 @@ export default function Footer() {
       </Container>
     </motion.footer>
   );
+}
+
+function isInternalHref(href: string): boolean {
+  return href.startsWith('/') || href.startsWith('#');
 }
